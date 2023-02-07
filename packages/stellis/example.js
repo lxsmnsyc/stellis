@@ -28,9 +28,8 @@ function Parent({ value }) {
   return <Child />
 }
 
-render(() => <>
-  <Parent value="Hello" />
-  <Parent value="World" />
+render(<>
+  <Parent value="Hello" /> <Parent value="World" />
 </>).then(console.log)
 
 `).then(console.log);

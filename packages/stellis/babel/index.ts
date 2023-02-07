@@ -525,6 +525,59 @@ function finalizeNode(
   }
 }
 
+function generateChildren(
+  children: (t.JSXElement | t.JSXFragment)['children'],
+) {
+  const resolvedChildren: t.Expression[] = [];
+
+  const wrapper = t.jsxFragment(
+    t.jsxOpeningFragment(),
+    t.jsxClosingFragment(),
+    children,
+  );
+
+  forEach(t.react.buildChildren(wrapper), (child) => {
+    if (t.isJSXElement(child) || t.isJSXFragment(child)) {
+      resolvedChildren.push(child);
+    } else if (t.isExpression(child)) {
+      if (isAwaited(child)) {
+        const id = t.identifier('v');
+        resolvedChildren.push(
+          t.arrowFunctionExpression(
+            [id],
+            t.sequenceExpression([
+              t.assignmentExpression('=', id, child),
+              id,
+            ]),
+            true,
+          ),
+        );
+      } else {
+        resolvedChildren.push(child);
+      }
+    } else if (isAwaited(child.expression)) {
+      const id = t.identifier('v');
+      resolvedChildren.push(
+        t.arrowFunctionExpression(
+          [id],
+          t.sequenceExpression([
+            t.assignmentExpression('=', id, child.expression),
+            id,
+          ]),
+        ),
+      );
+    } else {
+      resolvedChildren.push(child.expression);
+    }
+  });
+
+  const result = resolvedChildren.length === 1
+    ? resolvedChildren[0]
+    : t.arrayExpression(resolvedChildren);
+
+  return t.arrowFunctionExpression([], result);
+}
+
 function createElement(
   ctx: StateContext,
   path: babel.NodePath<t.JSXElement>,
@@ -554,11 +607,7 @@ function createElement(
       properties.push(
         t.objectProperty(
           t.identifier('children'),
-          t.arrowFunctionExpression([], t.jsxFragment(
-            t.jsxOpeningFragment(),
-            t.jsxClosingFragment(),
-            path.node.children,
-          )),
+          generateChildren(path.node.children),
         ),
       );
     }
@@ -623,11 +672,7 @@ function createElement(
       if (collected.content) {
         htmlArgs.push(t.arrowFunctionExpression([], collected.content));
       } else {
-        htmlArgs.push(t.arrowFunctionExpression([], t.jsxFragment(
-          t.jsxOpeningFragment(),
-          t.jsxClosingFragment(),
-          path.node.children,
-        )));
+        htmlArgs.push(generateChildren(path.node.children));
       }
       template.push(t.stringLiteral(`</${tagName}>`));
     }
@@ -678,11 +723,7 @@ function createComponent(
     properties.push(
       t.objectProperty(
         t.identifier('children'),
-        t.arrowFunctionExpression([], t.jsxFragment(
-          t.jsxOpeningFragment(),
-          t.jsxClosingFragment(),
-          path.node.children,
-        )),
+        generateChildren(path.node.children),
       ),
     );
   }
@@ -699,54 +740,7 @@ function createComponent(
 function createFragment(
   path: babel.NodePath<t.JSXFragment>,
 ) {
-  const children: t.Expression[] = [];
-
-  forEach(path.node.children, (child) => {
-    if (t.isJSXElement(child) || t.isJSXFragment(child)) {
-      children.push(child);
-    } else if (t.isJSXExpressionContainer(child)) {
-      if (t.isExpression(child.expression)) {
-        if (isAwaited(child.expression)) {
-          const id = t.identifier('v');
-          children.push(
-            t.arrowFunctionExpression(
-              [id],
-              t.sequenceExpression([
-                t.assignmentExpression('=', id, child.expression),
-                id,
-              ]),
-              true,
-            ),
-          );
-        } else {
-          children.push(child.expression);
-        }
-      }
-    } else if (t.isJSXSpreadChild(child)) {
-      if (isAwaited(child.expression)) {
-        const id = t.identifier('v');
-        children.push(
-          t.arrowFunctionExpression(
-            [id],
-            t.sequenceExpression([
-              t.assignmentExpression('=', id, child.expression),
-              id,
-            ]),
-          ),
-        );
-      } else {
-        children.push(child.expression);
-      }
-    } else {
-      children.push(t.stringLiteral(child.value));
-    }
-  });
-
-  if (children.length === 1) {
-    path.replaceWith(children[0]);
-  } else {
-    path.replaceWith(t.arrayExpression(children));
-  }
+  path.replaceWith(generateChildren(path.node.children));
 }
 
 interface State extends babel.PluginPass {

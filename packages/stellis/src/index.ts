@@ -134,7 +134,7 @@ export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
   };
 }
 
-export async function render(element: () => JSX.Element): Promise<string> {
+export async function render(element: JSX.Element): Promise<string> {
   const newOwner: Owner = {
     parent: OWNER,
     prefix: OWNER ? createID() : '',
