@@ -118,7 +118,7 @@ export function $$node(element: JSX.Element): Resolved {
   });
 }
 
-export function $$component<P>(Comp: Component<P>, props: () => P): JSX.Element {
+export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
   const newOwner: Owner = {
     parent: OWNER,
     prefix: OWNER ? createID() : '',
@@ -128,7 +128,7 @@ export function $$component<P>(Comp: Component<P>, props: () => P): JSX.Element 
   return () => {
     const parent = OWNER;
     OWNER = newOwner;
-    const result = $$node(Comp(props()));
+    const result = $$node(Comp(props));
     OWNER = parent;
     return result;
   };
@@ -217,7 +217,7 @@ export function $$style(...values: (JSX.CSSProperties | string)[]): JSX.SafeElem
 
 export function $$el<T extends keyof JSX.IntrinsicElements>(
   constructor: T,
-  props: () => Record<string, JSX.Element>,
+  props: Record<string, JSX.Element>,
 ): () => Resolved {
   return () => {
     let result = `<${constructor}`;
@@ -225,8 +225,7 @@ export function $$el<T extends keyof JSX.IntrinsicElements>(
 
     const shouldSkipChildren = VOID_ELEMENTS.test(constructor);
 
-    const resolvedProps = props();
-    const keys = Object.keys(resolvedProps);
+    const keys = Object.keys(props);
 
     let mainStyle: string | Record<string, string> = {};
     const subStyle: Record<string, string> = {};
@@ -235,31 +234,31 @@ export function $$el<T extends keyof JSX.IntrinsicElements>(
 
     forEach(keys, (k) => {
       if (!shouldSkipChildren && content == null && (k === CHILDREN_KEY || k === SET_HTML_KEY)) {
-        content = resolvedProps[k];
+        content = props[k];
       } else if (k === 'style') {
-        const value = resolvedProps[k] as string | Record<string, string> | undefined;
+        const value = props[k] as string | Record<string, string> | undefined;
         if (value != null) {
           mainStyle = value;
         }
       } else if (k.startsWith('style:')) {
-        const value = resolvedProps[k] as string;
+        const value = props[k] as string;
         if (value != null) {
           const [, key] = k.split(':');
           subStyle[key] = value;
         }
       } else if (k === 'class') {
-        const list = resolvedProps[k] as JSX.ClassList;
+        const list = props[k] as JSX.ClassList;
         if (list != null) {
           classes.push(list);
         }
       } else if (k.startsWith('class:')) {
-        const value = resolvedProps[k] as string;
+        const value = props[k] as string;
         if (value) {
           const [, key] = k.split(':');
           classes.push(key);
         }
       } else {
-        attrs += $$attr(k, resolvedProps[k] as string).t;
+        attrs += $$attr(k, props[k] as string).t;
       }
     });
 

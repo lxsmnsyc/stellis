@@ -507,7 +507,6 @@ function serializeHTMLArguments(
 }
 
 function finalizeNode(
-  ctx: StateContext,
   path: babel.NodePath<t.JSXElement>,
   asyncExpression: t.VariableDeclarator[],
   result: t.Expression,
@@ -568,7 +567,7 @@ function createElement(
       getImportIdentifier(ctx, path, IMPORTS.el),
       [
         t.stringLiteral(tagName),
-        t.arrowFunctionExpression([], t.objectExpression(properties)),
+        t.objectExpression(properties),
       ],
     );
   } else {
@@ -646,7 +645,7 @@ function createElement(
     );
   }
 
-  finalizeNode(ctx, path, asyncExpression, htmlResult);
+  finalizeNode(path, asyncExpression, htmlResult);
 }
 
 function getComponentIdentifier(name: t.JSXIdentifier | t.JSXMemberExpression): t.Expression {
@@ -688,11 +687,11 @@ function createComponent(
     );
   }
 
-  finalizeNode(ctx, path, asyncExpression, t.callExpression(
+  finalizeNode(path, asyncExpression, t.callExpression(
     getImportIdentifier(ctx, path, IMPORTS.component),
     [
       identifier,
-      t.arrowFunctionExpression([], t.objectExpression(properties)),
+      t.objectExpression(properties),
     ],
   ));
 }
