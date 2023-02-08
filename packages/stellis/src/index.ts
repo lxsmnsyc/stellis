@@ -328,8 +328,8 @@ export function $$style(...values: (JSX.CSSProperties | string)[]): JSX.SafeElem
   return { t: `style="${styleInternal(...values)}"` };
 }
 
-export function $$el<T extends keyof JSX.IntrinsicElements>(
-  constructor: T,
+export function $$el(
+  constructor: string,
   props: Record<string, JSX.Element>,
 ): () => JSX.Element {
   return () => {
@@ -399,5 +399,52 @@ export function $$el<T extends keyof JSX.IntrinsicElements>(
       return $$node(rendered);
     }
     return $$node(rendered);
+  };
+}
+
+export interface ErrorBoundaryProps {
+  fallback: (error: unknown) => JSX.Element;
+  children: JSX.Element;
+}
+
+export function ErrorBoundary({ fallback, children }: ErrorBoundaryProps): JSX.Element {
+  return () => Promise.resolve($$node(children)).catch(fallback);
+}
+
+export type Elements = keyof JSX.IntrinsicElements;
+export type Constructor =
+  | Elements
+  | Component<any>
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  | (string & {});
+
+export type ExtractProps<T extends Constructor> =
+  T extends Elements
+    ? JSX.IntrinsicElements[T]
+    :
+  T extends Component<infer U>
+    ? U
+    : Record<string, unknown>
+
+type OmitAndMerge<A, B> = A & Omit<B, keyof A>;
+
+interface DynamicBaseProps<T extends Constructor> {
+  component?: T | null | undefined;
+}
+
+export type DynamicProps<T extends Constructor> =
+  OmitAndMerge<DynamicBaseProps<T>, ExtractProps<T>>;
+
+export function Dynamic<T extends Constructor>(
+  { component, ...props }: DynamicProps<T>,
+): JSX.Element {
+  return () => {
+    if (component) {
+      if (typeof component === 'function') {
+        return $$component(component, props);
+      }
+      return $$el(component, props);
+    }
+    return { t: '' };
   };
 }
