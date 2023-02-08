@@ -148,12 +148,14 @@ export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
 
 export function $$inject(
   target: 'body' | 'head',
-  { type, children }: JSX.StellisBodyAttributes | JSX.StellisHeadAttributes,
+  { type = 'post', children }: JSX.StellisBodyAttributes | JSX.StellisHeadAttributes,
 ) {
-  if (OWNER && OWNER.root?.resolved === false) {
-    OWNER.root?.[target][type].push(children);
-  }
-  return { t: '' };
+  return () => {
+    if (OWNER && OWNER.root?.resolved === false) {
+      OWNER.root?.[target][type].push(children);
+    }
+    return { t: '' };
+  };
 }
 
 async function resolve(owner: Owner, el: JSX.Element) {

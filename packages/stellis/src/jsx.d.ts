@@ -73,13 +73,12 @@ export namespace JSX {
     html?: string;
   }
   interface ExplicitAttributes {}
-  type SetAttributes = {
+  type StellisAttributes = {
     [Key in keyof SetDirectives as `set:${Key}`]?: SetDirectives[Key];
   };
   interface DOMAttributes<T>
-    extends CustomAttributes<T>, SetAttributes {
+    extends CustomAttributes<T>, StellisAttributes {
     children?: Element;
-    'set:html'?: string;
   }
   interface CSSProperties extends csstype.PropertiesHyphen {
     // Override

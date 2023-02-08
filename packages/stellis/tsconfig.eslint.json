@@ -14,7 +14,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
-    "jsx": "react",
+    "jsx": "preserve",
     "esModuleInterop": true,
     "target": "ES2017"
   }
