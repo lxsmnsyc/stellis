@@ -408,7 +408,13 @@ export interface ErrorBoundaryProps {
 }
 
 export function ErrorBoundary({ fallback, children }: ErrorBoundaryProps): JSX.Element {
-  return () => Promise.resolve($$node(children)).catch(fallback);
+  return async () => {
+    try {
+      return Promise.resolve($$node(children)).catch(fallback);
+    } catch (error) {
+      return fallback(error);
+    }
+  };
 }
 
 export type Elements = keyof JSX.IntrinsicElements;
