@@ -15,27 +15,14 @@ async function transform(code) {
 }
 
 transform(`
-import { render } from 'stellis';
+import { Dynamic, render } from 'stellis';
 
-function Example() {
-  return (
-    <>
-      <stellis:head>
-        <title>Hello World</title>
-      </stellis:head>
-      <h1>Hello World</h1>
-    </>
-  );
+function Example({ as, children }) {
+  return <Dynamic component={as}>{children}</Dynamic>;
 }
 
 const result = await render(
-  <html>
-    <head />
-    <body>
-      <Example />
-    </body>
-  </html>
+  <Example as="h1">Hello World</Example>
 );
-
 console.log(result);
 `).then(console.log);
