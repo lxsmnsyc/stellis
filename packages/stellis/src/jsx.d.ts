@@ -37,6 +37,24 @@ export namespace JSX {
   interface FunctionElement {
     (): Element;
   }
+
+  interface StellisHeadAttributes {
+    type: 'pre' | 'post';
+    children: JSX.Element;
+  }
+  interface StellisBodyAttributes {
+    type: 'pre' | 'post';
+    children: JSX.Element;
+  }
+  interface StellisNamespace {
+    head: StellisHeadAttributes;
+    body: StellisBodyAttributes;
+  }
+
+  type StellisElements = {
+    [Key in keyof StellisNamespace as `stellis:${Key}`]: StellisNamespace[Key];
+  }
+
   interface ElementClass {
     // empty, libs can define requirements downstream
   }
@@ -51,17 +69,15 @@ export namespace JSX {
   }
   interface CustomAttributes<T> {
   }
-  interface ExplicitProperties {}
+  interface SetDirectives {
+    html?: string;
+  }
   interface ExplicitAttributes {}
-  type PropAttributes = {
-    [Key in keyof ExplicitProperties as `prop:${Key}`]?: ExplicitProperties[Key];
+  type SetAttributes = {
+    [Key in keyof SetDirectives as `set:${Key}`]?: SetDirectives[Key];
   };
-  type AttrAttributes = {
-    [Key in keyof ExplicitAttributes as `attr:${Key}`]?: ExplicitAttributes[Key];
-  };
-  interface DOMAttributes<T> extends CustomAttributes<T>,
-    PropAttributes,
-    AttrAttributes {
+  interface DOMAttributes<T>
+    extends CustomAttributes<T>, SetAttributes {
     children?: Element;
     'set:html'?: string;
   }
@@ -1815,5 +1831,11 @@ export namespace JSX {
     use: UseSVGAttributes<SVGUseElement>;
     view: ViewSVGAttributes<SVGViewElement>;
   }
-  interface IntrinsicElements extends HTMLElementTags, HTMLElementDeprecatedTags, SVGElementTags {}
+  interface IntrinsicElements extends
+    HTMLElementTags,
+    HTMLElementDeprecatedTags,
+    SVGElementTags,
+    StellisElements {
+
+  }
 }

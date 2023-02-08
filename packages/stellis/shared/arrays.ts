@@ -40,3 +40,23 @@ export function join(arr: string[], joiner?: string) {
   }
   return result;
 }
+
+type Flat<T> = T extends Array<infer U>
+  ? Flat<U>
+  : T;
+
+export function flat<T>(arr: T[]): Flat<T>[] {
+  const result: Flat<T>[] = [];
+
+  forEach(arr, (item) => {
+    if (Array.isArray(item)) {
+      forEach(flat(item), (value) => {
+        result.push(value as Flat<T>);
+      });
+    } else {
+      result.push(item as Flat<T>);
+    }
+  });
+
+  return result;
+}

@@ -25,6 +25,7 @@ const IMPORTS = {
   class: '$$class',
   style: '$$style',
   el: '$$el',
+  inject: '$$inject',
 };
 
 interface StateContext {
@@ -58,14 +59,70 @@ function getTagName(name: t.JSXIdentifier | t.JSXNamespacedName): string {
   return `${name.namespace.name}:${name.name.name}`;
 }
 
+function generateChildren(
+  children: (t.JSXElement | t.JSXFragment)['children'],
+) {
+  const resolvedChildren: t.Expression[] = [];
+
+  const wrapper = t.jsxFragment(
+    t.jsxOpeningFragment(),
+    t.jsxClosingFragment(),
+    children,
+  );
+
+  forEach(t.react.buildChildren(wrapper), (child) => {
+    if (t.isJSXElement(child) || t.isJSXFragment(child)) {
+      resolvedChildren.push(child);
+    } else if (t.isExpression(child)) {
+      if (isAwaited(child)) {
+        const id = t.identifier('v');
+        resolvedChildren.push(
+          t.arrowFunctionExpression(
+            [id],
+            t.sequenceExpression([
+              t.assignmentExpression('=', id, child),
+              id,
+            ]),
+            true,
+          ),
+        );
+      } else {
+        resolvedChildren.push(child);
+      }
+    } else if (isAwaited(child.expression)) {
+      const id = t.identifier('v');
+      resolvedChildren.push(
+        t.arrowFunctionExpression(
+          [id],
+          t.sequenceExpression([
+            t.assignmentExpression('=', id, child.expression),
+            id,
+          ]),
+        ),
+      );
+    } else {
+      resolvedChildren.push(child.expression);
+    }
+  });
+
+  const result = resolvedChildren.length === 1
+    ? resolvedChildren[0]
+    : t.arrayExpression(resolvedChildren);
+
+  if (isStatic(result)) {
+    return result;
+  }
+  return t.arrowFunctionExpression([], result);
+}
+
 function convertAttributesToObject(
   block: Scope,
   asyncExpression: t.VariableDeclarator[],
-  attrs: (t.JSXAttribute | t.JSXSpreadAttribute)[],
+  el: t.JSXElement,
 ) {
   const properties: (t.ObjectProperty | t.SpreadElement | t.ObjectMethod)[] = [];
 
-  forEach(attrs, (attr) => {
+  forEach(el.openingElement.attributes, (attr) => {
     if (t.isJSXSpreadAttribute(attr)) {
       if (isAwaited(attr.argument)) {
         const valueID = block.generateUidIdentifier('v');
@@ -106,6 +163,15 @@ function convertAttributesToObject(
       }
     }
   });
+
+  if (el.children.length) {
+    properties.push(
+      t.objectProperty(
+        t.identifier('children'),
+        generateChildren(el.children),
+      ),
+    );
+  }
 
   return properties;
 }
@@ -406,174 +472,127 @@ function finalizeNode(
   }
 }
 
-function generateChildren(
-  children: (t.JSXElement | t.JSXFragment)['children'],
-) {
-  const resolvedChildren: t.Expression[] = [];
-
-  const wrapper = t.jsxFragment(
-    t.jsxOpeningFragment(),
-    t.jsxClosingFragment(),
-    children,
-  );
-
-  forEach(t.react.buildChildren(wrapper), (child) => {
-    if (t.isJSXElement(child) || t.isJSXFragment(child)) {
-      resolvedChildren.push(child);
-    } else if (t.isExpression(child)) {
-      if (isAwaited(child)) {
-        const id = t.identifier('v');
-        resolvedChildren.push(
-          t.arrowFunctionExpression(
-            [id],
-            t.sequenceExpression([
-              t.assignmentExpression('=', id, child),
-              id,
-            ]),
-            true,
-          ),
-        );
-      } else {
-        resolvedChildren.push(child);
-      }
-    } else if (isAwaited(child.expression)) {
-      const id = t.identifier('v');
-      resolvedChildren.push(
-        t.arrowFunctionExpression(
-          [id],
-          t.sequenceExpression([
-            t.assignmentExpression('=', id, child.expression),
-            id,
-          ]),
-        ),
-      );
-    } else {
-      resolvedChildren.push(child.expression);
-    }
-  });
-
-  const result = resolvedChildren.length === 1
-    ? resolvedChildren[0]
-    : t.arrayExpression(resolvedChildren);
-
-  if (isStatic(result)) {
-    return result;
-  }
-  return t.arrowFunctionExpression([], result);
-}
-
 function createElement(
   ctx: StateContext,
   path: babel.NodePath<t.JSXElement>,
   name: t.JSXIdentifier | t.JSXNamespacedName,
 ) {
-  // Convert name to string
-  const tagName = getTagName(name);
-
-  const shouldSkipChildren = VOID_ELEMENTS.test(tagName);
-
   const program = path.scope.getProgramParent();
   const block = path.scope.getBlockParent();
 
   const asyncExpression: t.VariableDeclarator[] = [];
-
   let htmlResult: t.Expression | undefined;
 
-  // Check if node has prop spreading
-  if (hasPropSpreading(path.node)) {
-    const properties = convertAttributesToObject(
-      block,
-      asyncExpression,
-      path.node.openingElement.attributes,
-    );
+  if (t.isJSXNamespacedName(name) && name.namespace.name === 'stellis') {
+    if (name.name.name === 'head' || name.name.name === 'body') {
+      const properties = convertAttributesToObject(
+        block,
+        asyncExpression,
+        path.node,
+      );
 
-    if (path.node.children.length) {
-      properties.push(
-        t.objectProperty(
-          t.identifier('children'),
-          generateChildren(path.node.children),
-        ),
+      htmlResult = t.callExpression(
+        getImportIdentifier(ctx, path, IMPORTS.inject),
+        [
+          t.stringLiteral(name.name.name),
+          t.objectExpression(properties),
+        ],
+      );
+    } else {
+      htmlResult = generateChildren(path.node.children);
+    }
+  } else {
+    // Convert name to string
+    const tagName = getTagName(name);
+
+    const shouldSkipChildren = VOID_ELEMENTS.test(tagName);
+
+    // Check if node has prop spreading
+    if (hasPropSpreading(path.node)) {
+      const properties = convertAttributesToObject(
+        block,
+        asyncExpression,
+        path.node,
+      );
+
+      htmlResult = t.callExpression(
+        getImportIdentifier(ctx, path, IMPORTS.el),
+        [
+          t.stringLiteral(tagName),
+          t.objectExpression(properties),
+        ],
+      );
+    } else {
+      const templateID = program.generateUidIdentifier('template');
+
+      // Solve the template
+      let prefix = `<${tagName}`;
+      const collected = collectAttributes(path.node.openingElement.attributes);
+      const attrTemplate = serializeStaticAttributes(collected.static);
+      const htmlArgs = serializeHTMLArguments(ctx, path, block, asyncExpression, collected.dynamic);
+      const classList = serializeClassList(block, asyncExpression, collected.class);
+      const styles = serializeStyles(block, asyncExpression, collected.style);
+
+      if (classList.length) {
+        htmlArgs.push(t.callExpression(
+          getImportIdentifier(ctx, path, IMPORTS.class),
+          classList,
+        ));
+      }
+      if (styles.length) {
+        htmlArgs.push(t.callExpression(
+          getImportIdentifier(ctx, path, IMPORTS.style),
+          styles,
+        ));
+      }
+
+      if (attrTemplate !== '') {
+        prefix += ` ${attrTemplate}`;
+      } else if (htmlArgs.length) {
+        prefix += ' ';
+      }
+
+      const template = [t.stringLiteral(prefix)];
+
+      forEach(htmlArgs, (_, i) => {
+        if (i < htmlArgs.length - 1) {
+          template.push(t.stringLiteral(''));
+        }
+      });
+
+      if (shouldSkipChildren) {
+        if (htmlArgs.length) {
+          template.push(t.stringLiteral('/>'));
+        } else {
+          template[0].value += '/>';
+        }
+      } else {
+        if (htmlArgs.length) {
+          template.push(t.stringLiteral('>'));
+        } else {
+          template[0].value += '>';
+        }
+        if (collected.content) {
+          htmlArgs.push(t.arrowFunctionExpression([], collected.content));
+        } else {
+          htmlArgs.push(generateChildren(path.node.children));
+        }
+        template.push(t.stringLiteral(`</${tagName}>`));
+      }
+
+      // Push template
+      program.push({
+        id: templateID,
+        kind: 'const',
+        init: t.arrayExpression(template),
+      });
+
+      htmlResult = t.callExpression(
+        getImportIdentifier(ctx, path, IMPORTS.html),
+        [templateID, ...htmlArgs],
       );
     }
-
-    htmlResult = t.callExpression(
-      getImportIdentifier(ctx, path, IMPORTS.el),
-      [
-        t.stringLiteral(tagName),
-        t.objectExpression(properties),
-      ],
-    );
-  } else {
-    const templateID = program.generateUidIdentifier('template');
-
-    // Solve the template
-    let prefix = `<${tagName}`;
-    const collected = collectAttributes(path.node.openingElement.attributes);
-    const attrTemplate = serializeStaticAttributes(collected.static);
-    const htmlArgs = serializeHTMLArguments(ctx, path, block, asyncExpression, collected.dynamic);
-    const classList = serializeClassList(block, asyncExpression, collected.class);
-    const styles = serializeStyles(block, asyncExpression, collected.style);
-
-    if (classList.length) {
-      htmlArgs.push(t.callExpression(
-        getImportIdentifier(ctx, path, IMPORTS.class),
-        classList,
-      ));
-    }
-    if (styles.length) {
-      htmlArgs.push(t.callExpression(
-        getImportIdentifier(ctx, path, IMPORTS.style),
-        styles,
-      ));
-    }
-
-    if (attrTemplate !== '') {
-      prefix += ` ${attrTemplate}`;
-    } else if (htmlArgs.length) {
-      prefix += ' ';
-    }
-
-    const template = [t.stringLiteral(prefix)];
-
-    forEach(htmlArgs, (_, i) => {
-      if (i < htmlArgs.length - 1) {
-        template.push(t.stringLiteral(''));
-      }
-    });
-
-    if (shouldSkipChildren) {
-      if (htmlArgs.length) {
-        template.push(t.stringLiteral('/>'));
-      } else {
-        template[0].value += '/>';
-      }
-    } else {
-      if (htmlArgs.length) {
-        template.push(t.stringLiteral('>'));
-      } else {
-        template[0].value += '>';
-      }
-      if (collected.content) {
-        htmlArgs.push(t.arrowFunctionExpression([], collected.content));
-      } else {
-        htmlArgs.push(generateChildren(path.node.children));
-      }
-      template.push(t.stringLiteral(`</${tagName}>`));
-    }
-
-    // Push template
-    program.push({
-      id: templateID,
-      kind: 'const',
-      init: t.arrayExpression(template),
-    });
-
-    htmlResult = t.callExpression(
-      getImportIdentifier(ctx, path, IMPORTS.html),
-      [templateID, ...htmlArgs],
-    );
   }
-
   finalizeNode(path, asyncExpression, htmlResult);
 }
 
@@ -600,17 +619,8 @@ function createComponent(
   const properties = convertAttributesToObject(
     block,
     asyncExpression,
-    path.node.openingElement.attributes,
+    path.node,
   );
-
-  if (path.node.children.length) {
-    properties.push(
-      t.objectProperty(
-        t.identifier('children'),
-        generateChildren(path.node.children),
-      ),
-    );
-  }
 
   finalizeNode(path, asyncExpression, t.callExpression(
     getImportIdentifier(ctx, path, IMPORTS.component),

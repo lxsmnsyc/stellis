@@ -6,10 +6,22 @@ import { CHILDREN_KEY, SET_HTML_KEY, VOID_ELEMENTS } from '../shared/constants';
 
 export { JSX, $$attr, $$escape };
 
+interface Injector {
+  pre: JSX.Element[];
+  post: JSX.Element[];
+}
+
+interface Root {
+  resolved: boolean;
+  head: Injector;
+  body: Injector;
+}
+
 interface Owner {
   parent?: Owner;
   prefix?: string;
   index: number;
+  root?: Root;
   map: Record<string, any>;
 }
 
@@ -63,6 +75,16 @@ type Resolved =
   | JSX.SafeElement
   | Promise<JSX.SafeElement>;
 
+function reconcileResolvedArray(resolved: Resolved[]): Resolved {
+  return Promise.all(resolved).then((items) => {
+    let result = '';
+    forEach(items, (item) => {
+      result += item.t;
+    });
+    return { t: result };
+  });
+}
+
 export function $$node(element: JSX.Element): Resolved {
   // Skip nullish and booleans
   if (
@@ -76,9 +98,11 @@ export function $$node(element: JSX.Element): Resolved {
   if (typeof element === 'number' || typeof element === 'string') {
     return { t: $$escape(`${element}`) };
   }
-  // Recursive for functions
   if (typeof element === 'function') {
     return $$node(element());
+  }
+  if ('t' in element) {
+    return element;
   }
   if (Array.isArray(element)) {
     if (element.length === 0) {
@@ -88,25 +112,12 @@ export function $$node(element: JSX.Element): Resolved {
       return $$node(element[0]);
     }
     const els: Resolved[] = [];
-
     // Try to node each item
     forEach(element, (value) => {
       els.push($$node(value));
     });
-
     // For precaution, await all values
-    return Promise.all(els).then((nodes) => {
-      let result = '';
-      forEach(nodes, (n) => {
-        if (n) {
-          result += n.t;
-        }
-      });
-      return { t: result };
-    });
-  }
-  if ('t' in element) {
-    return element;
+    return reconcileResolvedArray(els);
   }
   const captured = OWNER;
   return element.then((value) => {
@@ -123,6 +134,7 @@ export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
     const newOwner: Owner = {
       parent: OWNER,
       prefix: OWNER ? createID() : '',
+      root: OWNER?.root,
       index: 0,
       map: {},
     };
@@ -134,21 +146,117 @@ export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
   };
 }
 
+export function $$inject(
+  target: 'body' | 'head',
+  { type, children }: JSX.StellisBodyAttributes | JSX.StellisHeadAttributes,
+) {
+  if (OWNER && OWNER.root?.resolved === false) {
+    OWNER.root?.[target][type].push(children);
+  }
+  return { t: '' };
+}
+
+async function resolve(owner: Owner, el: JSX.Element) {
+  const prev = OWNER;
+  OWNER = owner;
+  const resultPromise = $$node(el);
+  OWNER = prev;
+  return (await resultPromise).t;
+}
+
+async function resolveInject(owner: Owner, root: Root, result: string) {
+  const [preHead, postHead, preBody, postBody] = await Promise.all([
+    resolve(owner, root.head.pre),
+    resolve(owner, root.head.post),
+    resolve(owner, root.body.pre),
+    resolve(owner, root.body.post),
+  ]);
+  let state = result;
+  // Check if it has a <html>
+  const htmlMatch = /<html\b[^>]*>/i.exec(state);
+  if (htmlMatch) {
+    // Check if there's a head
+    const headMatch = /<head\b[^>]*>/i.exec(state);
+    if (headMatch) {
+      state = state.replace(headMatch[0], `${headMatch[0]}${preHead}`);
+      if (/<\/head>/i.test(state)) {
+        state = state.replace('</head>', `${postHead}</head>`);
+      } else {
+        throw new Error('Missing </head>');
+      }
+    } else {
+      // Create a head
+      state = state.replace(htmlMatch[0], `${htmlMatch[0]}<head>${preHead}${postHead}</head>`);
+    }
+    // Check if it has a <body>
+    const bodyMatch = /<body\b[^>]*>/i.exec(state);
+    if (bodyMatch) {
+      state = state.replace(bodyMatch[0], `${bodyMatch[0]}${preBody}`);
+      if (/<\/body>/i.test(state)) {
+        state = state.replace('</body>', `${postBody}</body>`);
+      } else {
+        throw new Error('Missing </body>');
+      }
+    } else {
+      state = state.replace('</head>', `</head><body>${preHead}`);
+      state = state.replace('</html>', `${postHead}</body></html>`);
+    }
+  } else {
+    // Check if it has a <body>
+    const headMatch = /<head\b[^>]*>/i.exec(state);
+    const bodyMatch = /<body\b[^>]*>/i.exec(state);
+    if (bodyMatch) {
+      state = state.replace(bodyMatch[0], `${bodyMatch[0]}${preBody}`);
+      if (/<\/body>/i.test(state)) {
+        state = state.replace('</body>', `${postBody}</body>`);
+      } else {
+        throw new Error('Missing </body>');
+      }
+    } else if (!headMatch) {
+      state = `${preBody}${state}${postBody}`;
+    }
+    if (headMatch) {
+      state = state.replace(headMatch[0], `${headMatch[0]}${preHead}`);
+      if (/<\/head>/i.test(state)) {
+        const replacement = `${postHead}${preBody}${postBody}`;
+        state = state.replace('</head>', `${replacement}</head>`);
+      } else {
+        throw new Error('Missing </head>');
+      }
+    } else {
+      state = `${preHead}${postHead}${state}`;
+    }
+  }
+
+  return state;
+}
+
 export async function render(element: JSX.Element): Promise<string> {
+  const root: Root = {
+    resolved: false,
+    head: {
+      pre: [],
+      post: [],
+    },
+    body: {
+      pre: [],
+      post: [],
+    },
+  };
   const newOwner: Owner = {
-    parent: OWNER,
-    prefix: OWNER ? createID() : '',
+    parent: undefined,
+    prefix: '',
+    root,
     index: 0,
     map: {},
   };
-  const parent = OWNER;
-  OWNER = newOwner;
-  const result = await $$node(element);
-  OWNER = parent;
-  return result.t;
+  const resolved = await resolve(newOwner, element);
+  root.resolved = true;
+  // Resolve head and body
+  return resolveInject(newOwner, root, resolved);
 }
 
-export function $$html(templates: string[], ...nodes: JSX.Element[]): () => Resolved {
+export function $$html(templates: string[], ...nodes: JSX.Element[]): () => JSX.Element {
   // Merge
   return () => {
     const resolved: JSX.Element = [];
@@ -158,6 +266,9 @@ export function $$html(templates: string[], ...nodes: JSX.Element[]): () => Reso
         resolved.push(nodes[i]);
       }
     });
+    if (OWNER?.root?.resolved) {
+      return $$node(resolved);
+    }
     return $$node(resolved);
   };
 }
@@ -218,7 +329,7 @@ export function $$style(...values: (JSX.CSSProperties | string)[]): JSX.SafeElem
 export function $$el<T extends keyof JSX.IntrinsicElements>(
   constructor: T,
   props: Record<string, JSX.Element>,
-): () => Resolved {
+): () => JSX.Element {
   return () => {
     let result = `<${constructor}`;
     let content: JSX.Element;
@@ -281,6 +392,10 @@ export function $$el<T extends keyof JSX.IntrinsicElements>(
         t: `${result}/>`,
       };
     }
-    return $$node([{ t: `${result}>` }, content, { t: `</${constructor}>` }]);
+    const rendered = [{ t: `${result}>` }, content, { t: `</${constructor}>` }];
+    if (OWNER?.root?.resolved) {
+      return $$node(rendered);
+    }
+    return $$node(rendered);
   };
 }

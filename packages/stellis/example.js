@@ -15,22 +15,6 @@ async function transform(code) {
 }
 
 transform(`
-import { getContext, setContext, createContext, render } from 'stellis';
-
-const example = createContext();
-
-function Child() {
-  console.log(getContext(example));
-}
-
-function Parent({ value }) {
-  setContext(example, value);
-  return <Child />
-}
-
-render(<>
-  <Parent value="Hello" />
-  <Parent value="World" />
-</>).then(console.log)
+<head />
 
 `).then(console.log);
