@@ -375,14 +375,14 @@ export function $$el(
       }
     });
 
-    const mergedClasses = $$class(...classes).t;
+    const mergedClasses = classInternal(...classes);
     if (mergedClasses !== '') {
-      attrs += mergedClasses;
+      attrs += `class="${mergedClasses}"`;
     }
 
-    const mergedStyles = $$style(mainStyle, subStyle).t;
+    const mergedStyles = styleInternal(mainStyle, subStyle);
     if (mergedStyles !== '') {
-      attrs += mergedStyles;
+      attrs += `style="${mergedStyles}"`;
     }
 
     if (attrs !== '') {
