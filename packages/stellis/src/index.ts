@@ -55,7 +55,7 @@ export function getContext<T>(key: ContextKey<T>): T {
     if (key.id in current.map) {
       return current.map[key.id] as T;
     }
-    current = OWNER?.parent;
+    current = current?.parent;
   }
   return key.defaultValue;
 }
