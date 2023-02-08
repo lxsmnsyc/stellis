@@ -85,7 +85,7 @@ function reconcileResolvedArray(resolved: Resolved[]): Resolved {
   });
 }
 
-export function $$node(element: JSX.Element): Resolved {
+export function $$node(element: JSX.Element, escape = true): Resolved {
   // Skip nullish and booleans
   if (
     element == null
@@ -95,8 +95,11 @@ export function $$node(element: JSX.Element): Resolved {
     return { t: '' };
   }
   // return for number or strings
-  if (typeof element === 'number' || typeof element === 'string') {
-    return { t: $$escape(`${element}`) };
+  if (typeof element === 'number') {
+    return { t: `${element}` };
+  }
+  if (typeof element === 'string') {
+    return { t: escape ? $$escape(element) : element };
   }
   if (typeof element === 'function') {
     return $$node(element());
@@ -114,7 +117,7 @@ export function $$node(element: JSX.Element): Resolved {
     const els: Resolved[] = [];
     // Try to node each item
     forEach(element, (value) => {
-      els.push($$node(value));
+      els.push($$node(value, escape));
     });
     // For precaution, await all values
     return reconcileResolvedArray(els);
@@ -123,7 +126,7 @@ export function $$node(element: JSX.Element): Resolved {
   return element.then((value) => {
     const current = OWNER;
     OWNER = captured;
-    const result = $$node(value);
+    const result = $$node(value, escape);
     OWNER = current;
     return result;
   });
@@ -258,7 +261,11 @@ export async function render(element: JSX.Element): Promise<string> {
   return resolveInject(newOwner, root, resolved);
 }
 
-export function $$html(templates: string[], ...nodes: JSX.Element[]): () => JSX.Element {
+export function $$html(
+  templates: string[],
+  escape: boolean,
+  ...nodes: JSX.Element[]
+): () => JSX.Element {
   // Merge
   return () => {
     const resolved: JSX.Element = [];
@@ -268,10 +275,7 @@ export function $$html(templates: string[], ...nodes: JSX.Element[]): () => JSX.
         resolved.push(nodes[i]);
       }
     });
-    if (OWNER?.root?.resolved) {
-      return $$node(resolved);
-    }
-    return $$node(resolved);
+    return $$node(resolved, escape);
   };
 }
 
@@ -345,8 +349,11 @@ export function $$el(
     const classes: JSX.ClassList[] = [];
     let attrs = '';
 
+    let escape = true;
+
     forEach(keys, (k) => {
-      if (!shouldSkipChildren && content == null && (k === CHILDREN_KEY || k === SET_HTML_KEY)) {
+      if (!shouldSkipChildren && (k === CHILDREN_KEY || k === SET_HTML_KEY)) {
+        escape = k === SET_HTML_KEY;
         content = props[k];
       } else if (k === 'style') {
         const value = props[k] as string | Record<string, string> | undefined;
@@ -395,10 +402,7 @@ export function $$el(
       };
     }
     const rendered = [{ t: `${result}>` }, content, { t: `</${constructor}>` }];
-    if (OWNER?.root?.resolved) {
-      return $$node(rendered);
-    }
-    return $$node(rendered);
+    return $$node(rendered, escape);
   };
 }
 

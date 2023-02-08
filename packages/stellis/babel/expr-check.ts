@@ -8,7 +8,7 @@ import * as t from '@babel/types';
 import { every, forEach, some } from '../shared/arrays';
 import { Serializable } from '../shared/attr';
 
-function unwrapLiteral(node: t.Expression): Serializable {
+export function unwrapLiteral(node: t.Expression): Serializable {
   if (
     t.isParenthesizedExpression(node)
     || t.isTypeCastExpression(node)
@@ -115,8 +115,22 @@ function unwrapLiteral(node: t.Expression): Serializable {
   throw new Error('Attempted to unwrap a non-guaranteed literal');
 }
 
-export function serializeLiteral(node: t.Expression): Serializable {
-  return unwrapLiteral(node);
+export function serializeLiteral(node: t.Expression): string {
+  const unwrapped = unwrapLiteral(node);
+  if (
+    unwrapped == null
+    || unwrapped === true
+    || unwrapped === false
+  ) {
+    return '';
+  }
+  if (typeof unwrapped === 'number' || typeof unwrapped === 'bigint') {
+    return `${unwrapped}`;
+  }
+  if (typeof unwrapped === 'string') {
+    return unwrapped;
+  }
+  return String(unwrapped);
 }
 
 export function isGuaranteedLiteral(node: t.Expression): node is t.Literal {

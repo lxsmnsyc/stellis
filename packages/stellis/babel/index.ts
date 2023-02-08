@@ -10,7 +10,9 @@ import {
   isGuaranteedLiteral,
   isStatic,
   serializeLiteral,
+  unwrapLiteral,
 } from './expr-check';
+import $$escape from '../shared/escape-string';
 
 // The module
 const SOURCE_MODULE = 'stellis';
@@ -59,6 +61,37 @@ function getTagName(name: t.JSXIdentifier | t.JSXNamespacedName): string {
   return `${name.namespace.name}:${name.name.name}`;
 }
 
+function optimizeChildren(
+  children: t.Expression[],
+): t.Expression[] {
+  const resolved: t.Expression[] = [];
+
+  let sequence: string | undefined;
+
+  forEach(children, (child) => {
+    if (isGuaranteedLiteral(child)) {
+      const result = serializeLiteral(child);
+      if (sequence) {
+        sequence += result;
+      } else {
+        sequence = result;
+      }
+    } else {
+      if (sequence) {
+        resolved.push(t.stringLiteral(sequence));
+        sequence = undefined;
+      }
+      resolved.push(child);
+    }
+  });
+
+  if (sequence) {
+    resolved.push(t.stringLiteral(sequence));
+  }
+
+  return resolved;
+}
+
 function generateChildren(
   children: (t.JSXElement | t.JSXFragment)['children'],
 ) {
@@ -71,8 +104,10 @@ function generateChildren(
   );
 
   forEach(t.react.buildChildren(wrapper), (child) => {
-    if (t.isJSXElement(child) || t.isJSXFragment(child)) {
+    if (t.isJSXElement(child)) {
       resolvedChildren.push(child);
+    } else if (t.isJSXFragment(child)) {
+      resolvedChildren.push(generateChildren(child.children));
     } else if (t.isExpression(child)) {
       if (isAwaited(child)) {
         const id = t.identifier('v');
@@ -105,9 +140,11 @@ function generateChildren(
     }
   });
 
+  const optimized = optimizeChildren(resolvedChildren);
+
   const result = resolvedChildren.length === 1
-    ? resolvedChildren[0]
-    : t.arrayExpression(resolvedChildren);
+    ? optimized[0]
+    : t.arrayExpression(optimized);
 
   if (isStatic(result)) {
     return result;
@@ -259,12 +296,12 @@ function serializeStaticAttributes(attributes: t.JSXAttribute[]) {
   forEach(attributes, (attr) => {
     if (attr.value) {
       if (t.isStringLiteral(attr.value)) {
-        attrTemplate += $$attr(getTagName(attr.name), serializeLiteral(attr.value)).t;
+        attrTemplate += $$attr(getTagName(attr.name), unwrapLiteral(attr.value)).t;
       } else if (
         t.isJSXExpressionContainer(attr.value)
       ) {
         if (t.isLiteral(attr.value.expression)) {
-          attrTemplate += $$attr(getTagName(attr.name), serializeLiteral(attr.value.expression)).t;
+          attrTemplate += $$attr(getTagName(attr.name), unwrapLiteral(attr.value.expression)).t;
         } else {
           attrTemplate += $$attr(getTagName(attr.name), true).t;
         }
@@ -532,6 +569,7 @@ function createElement(
       const htmlArgs = serializeHTMLArguments(ctx, path, block, asyncExpression, collected.dynamic);
       const classList = serializeClassList(block, asyncExpression, collected.class);
       const styles = serializeStyles(block, asyncExpression, collected.style);
+      const shouldEscape = t.booleanLiteral(true);
 
       if (classList.length) {
         htmlArgs.push(t.callExpression(
@@ -573,11 +611,22 @@ function createElement(
           template[0].value += '>';
         }
         if (collected.content) {
-          htmlArgs.push(t.arrowFunctionExpression([], collected.content));
+          if (isGuaranteedLiteral(collected.content)) {
+            template[template.length - 1].value += `${serializeLiteral(collected.content)}</${tagName}>`;
+          } else {
+            htmlArgs.push(t.arrowFunctionExpression([], collected.content));
+            template.push(t.stringLiteral(`</${tagName}>`));
+          }
+          shouldEscape.value = false;
         } else {
-          htmlArgs.push(generateChildren(path.node.children));
+          const children = generateChildren(path.node.children);
+          if (isGuaranteedLiteral(children)) {
+            template[template.length - 1].value += `${$$escape(serializeLiteral(children))}</${tagName}>`;
+          } else {
+            htmlArgs.push(children);
+            template.push(t.stringLiteral(`</${tagName}>`));
+          }
         }
-        template.push(t.stringLiteral(`</${tagName}>`));
       }
 
       // Push template
@@ -589,7 +638,7 @@ function createElement(
 
       htmlResult = t.callExpression(
         getImportIdentifier(ctx, path, IMPORTS.html),
-        [templateID, ...htmlArgs],
+        [templateID, shouldEscape, ...htmlArgs],
       );
     }
   }

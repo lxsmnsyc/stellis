@@ -15,14 +15,8 @@ async function transform(code) {
 }
 
 transform(`
-import { Dynamic, render } from 'stellis';
+import { render } from 'stellis';
 
-function Example({ as, children }) {
-  return <Dynamic component={as}>{children}</Dynamic>;
-}
-
-const result = await render(
-  <Example as="h1">Hello World</Example>
-);
-console.log(result);
+console.log(await render(<div set:html="<script>Hello World</script>" />));
+console.log(await render(<div><>{'<script>Hello World</script>'}</></div>));
 `).then(console.log);

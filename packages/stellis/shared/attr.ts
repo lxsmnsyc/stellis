@@ -5,7 +5,7 @@ import {
   OVERLOADED_BOOLEAN_PROPS,
   POSITIVE_NUMERIC_PROPS,
 } from './constants';
-import escapeString from './escape-string';
+import $$escape from './escape-string';
 
 export type Serializable =
   | string
@@ -40,7 +40,7 @@ function attrInternal(
       if (typeof value === 'number') {
         return `${name}="${String(value)}"`;
       }
-      return `${name}="${escapeString(String(value))}"`;
+      return `${name}="${$$escape(String(value))}"`;
     }
     return '';
   }
@@ -71,7 +71,7 @@ function attrInternal(
   if (value == null) {
     return '';
   }
-  return `${name}="${escapeString(String(value))}"`;
+  return `${name}="${$$escape(String(value))}"`;
 }
 
 export default function $$attr(
