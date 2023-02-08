@@ -77,6 +77,76 @@ async function Profile({ id }) {
 } 
 ```
 
+### Attributes
+
+#### `class` and `class:<name>` directives
+
+```js
+<h1 class="example">Hello</h1>
+<h1 class={["a", condB && b]}>Array</h1>
+<h1 class={{ a: true, b: condB, c: condC }}>Object</h1>
+<h1 class={["a", { b: condB }, [condC && "c"]]}>Nested</h1>
+```
+
+```js
+<h1 class:example>Hello</h1>
+<h1 class:a class:b={cond}>Another Example</h1>
+```
+
+#### `style` and `style:<property>` directives
+
+```js
+<h1 style={{color: "red"}}>Red Heading</h1>
+<h1 style:color="red">Red Heading 2</h1>
+```
+
+#### `set:html`
+
+```js
+<div set:html="<script>Hello World</script>" />
+```
+
+### Built-in Components
+
+#### `ErrorBoundary`
+
+```js
+import { ErrorBoundary, render } from 'stellis';
+
+function FailingComponent() {
+  throw new Error('Example');
+}
+
+const result = await render(
+  <ErrorBoundary
+    fallback={(error) => <>
+      <h1>Error: {error.name}</h1>
+      <p>Message: {error.message}</p>
+    </>}
+  >
+    <FailingComponent />
+  </ErrorBoundary>
+);
+console.log(result);
+// Output: <h1>Error: Error</h1><p>Message: Example</p>
+```
+
+#### `Dynamic`
+
+```js
+import { Dynamic, render } from 'stellis';
+
+function Example({ as, children }) {
+  return <Dynamic component={as}>{children}</Dynamic>;
+}
+
+const result = await render(
+  <Example as="h1">Hello World</Example>
+);
+console.log(result);
+// Output: <h1>Hello World</h1>
+```
+
 ### Context API
 
 ```js
@@ -107,45 +177,6 @@ console.log(result);
 
 // Output
 // <h1>Bonjour World</h1><h1>Hello World</h1>
-```
-
-### Error Boundaries
-
-```js
-import { ErrorBoundary, render } from 'stellis';
-
-function FailingComponent() {
-  throw new Error('Example');
-}
-
-const result = await render(
-  <ErrorBoundary
-    fallback={(error) => <>
-      <h1>Error: {error.name}</h1>
-      <p>Message: {error.message}</p>
-    </>}
-  >
-    <FailingComponent />
-  </ErrorBoundary>
-);
-console.log(result);
-// Output: <h1>Error: Error</h1><p>Message: Example</p>
-```
-
-### `Dynamic`
-
-```js
-import { Dynamic, render } from 'stellis';
-
-function Example({ as, children }) {
-  return <Dynamic component={as}>{children}</Dynamic>;
-}
-
-const result = await render(
-  <Example as="h1">Hello World</Example>
-);
-console.log(result);
-// Output: <h1>Hello World</h1>
 ```
 
 ### Stellis namespace
