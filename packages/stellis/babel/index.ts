@@ -2,9 +2,15 @@ import * as babel from '@babel/core';
 import * as t from '@babel/types';
 import { addNamed } from '@babel/helper-module-imports';
 import { Scope } from '@babel/traverse';
-import { every, forEach, some } from '../shared/arrays';
+import { forEach, some } from '../shared/arrays';
 import { VOID_ELEMENTS } from '../shared/constants';
 import $$attr from '../shared/attr';
+import {
+  isAwaited,
+  isGuaranteedLiteral,
+  isStatic,
+  serializeLiteral,
+} from './expr-check';
 
 // The module
 const SOURCE_MODULE = 'stellis';
@@ -38,154 +44,6 @@ function getImportIdentifier(
   const newID = addNamed(path, name, source);
   ctx.hooks.set(name, newID);
   return newID;
-}
-
-function isLiteral(node: t.Expression): node is t.Literal {
-  if (t.isLiteral(node)) {
-    // Check if it is template literal but with only static expressions
-    if (t.isTemplateLiteral(node)) {
-      return every(node.expressions, (expr) => t.isExpression(expr) && isLiteral(expr));
-    }
-  }
-  return false;
-}
-
-function unwrapLiteral(node: t.Literal) {
-  if (
-    t.isStringLiteral(node)
-    || t.isNumericLiteral(node)
-    || t.isBooleanLiteral(node)
-  ) {
-    return node.value;
-  }
-  if (t.isNullLiteral(node)) {
-    return 'null';
-  }
-  if (t.isBigIntLiteral(node)) {
-    return String(BigInt(node.value));
-  }
-  if (t.isRegExpLiteral(node)) {
-    return String(new RegExp(node.pattern, node.flags));
-  }
-  if (t.isDecimalLiteral(node)) {
-    return node.value;
-  }
-  let result = '';
-  forEach(node.quasis, (template, i) => {
-    result += template.value.cooked ?? '';
-    const expr = node.expressions[i];
-    if (t.isLiteral(expr)) {
-      result += String(unwrapLiteral(expr));
-    }
-  });
-  return result;
-}
-
-function isAwaited(node: t.Expression | t.SpreadElement): boolean {
-  // Default
-  if (t.isAwaitExpression(node)) {
-    return true;
-  }
-  if (t.isTemplateLiteral(node)) {
-    return some(node.expressions, (expr) => t.isExpression(expr) && isAwaited(expr));
-  }
-  if (
-    t.isLiteral(node)
-    || t.isIdentifier(node)
-    || t.isArrowFunctionExpression(node)
-    || t.isFunctionExpression(node)
-    || t.isClassExpression(node)
-    || t.isYieldExpression(node)
-    || t.isJSX(node)
-    || t.isMetaProperty(node)
-    || t.isSuper(node)
-    || t.isThisExpression(node)
-    || t.isImport(node)
-    || t.isDoExpression(node)
-  ) {
-    return false;
-  }
-  if (t.isTaggedTemplateExpression(node)) {
-    return isAwaited(node.tag) || isAwaited(node.quasi);
-  }
-  if (
-    t.isUnaryExpression(node)
-    || t.isUpdateExpression(node)
-    || t.isSpreadElement(node)
-  ) {
-    return isAwaited(node.argument);
-  }
-  if (
-    t.isParenthesizedExpression(node)
-    || t.isTypeCastExpression(node)
-    || t.isTSAsExpression(node)
-    || t.isTSSatisfiesExpression(node)
-    || t.isTSNonNullExpression(node)
-    || t.isTSTypeAssertion(node)
-    || t.isTSInstantiationExpression(node)
-  ) {
-    return isAwaited(node.expression);
-  }
-  // Check for elements
-  if (t.isArrayExpression(node) || t.isTupleExpression(node)) {
-    return some(node.elements, (el) => el != null && isAwaited(el));
-  }
-  // Skip arrow function
-  if (t.isAssignmentExpression(node)) {
-    if (isAwaited(node.right)) {
-      return true;
-    }
-    if (t.isExpression(node.left)) {
-      return isAwaited(node.left);
-    }
-    return false;
-  }
-  if (t.isBinaryExpression(node)) {
-    if (t.isExpression(node.left) && isAwaited(node.left)) {
-      return true;
-    }
-    return isAwaited(node.right);
-  }
-  if (t.isCallExpression(node) || t.isOptionalCallExpression(node) || t.isNewExpression(node)) {
-    if (t.isExpression(node.callee) && isAwaited(node.callee)) {
-      return true;
-    }
-    return some(node.arguments, (arg) => (
-      arg && (t.isSpreadElement(arg) || t.isExpression(arg)) && isAwaited(arg)
-    ));
-  }
-  if (t.isConditionalExpression(node)) {
-    return isAwaited(node.test)
-      || isAwaited(node.consequent)
-      || isAwaited(node.alternate);
-  }
-  if (t.isLogicalExpression(node)) {
-    return isAwaited(node.left) || isAwaited(node.right);
-  }
-  if (t.isMemberExpression(node) || t.isOptionalMemberExpression(node)) {
-    return isAwaited(node.object)
-      || (node.computed && t.isExpression(node.property) && isAwaited(node.property));
-  }
-  if (t.isSequenceExpression(node)) {
-    return some(node.expressions, isAwaited);
-  }
-  if (t.isObjectExpression(node) || t.isRecordExpression(node)) {
-    return some(node.properties, (prop) => {
-      if (t.isObjectProperty(prop)) {
-        if (t.isExpression(prop.value) && isAwaited(prop.value)) {
-          return true;
-        }
-        if (prop.computed && t.isExpression(prop.key) && isAwaited(prop.key)) {
-          return true;
-        }
-      }
-      return false;
-    });
-  }
-  if (t.isBindExpression(node)) {
-    return isAwaited(node.object) || isAwaited(node.callee);
-  }
-  return false;
 }
 
 function hasPropSpreading(node: t.JSXElement) {
@@ -288,9 +146,12 @@ function collectAttributes(attributes: (t.JSXAttribute | t.JSXSpreadAttribute)[]
                   collected.content = attr.value;
                 } else if (
                   t.isJSXExpressionContainer(attr.value)
-                  && !t.isJSXEmptyExpression(attr.value.expression)
                 ) {
-                  collected.content = attr.value.expression;
+                  if (t.isJSXEmptyExpression(attr.value.expression)) {
+                    collected.content = t.stringLiteral('');
+                  } else {
+                    collected.content = attr.value.expression;
+                  }
                 }
                 break;
               default:
@@ -308,10 +169,14 @@ function collectAttributes(attributes: (t.JSXAttribute | t.JSXSpreadAttribute)[]
         if (t.isStringLiteral(attr.value)) {
           collected.static.push(attr);
         } else if (t.isJSXExpressionContainer(attr.value)) {
-          if (t.isExpression(attr.value.expression) && isLiteral(attr.value.expression)) {
-            collected.static.push(attr);
+          if (t.isExpression(attr.value.expression)) {
+            if (isGuaranteedLiteral(attr.value.expression)) {
+              collected.static.push(attr);
+            } else {
+              collected.dynamic.push(attr);
+            }
           } else {
-            collected.dynamic.push(attr);
+            collected.static.push(attr);
           }
         }
       } else {
@@ -328,12 +193,15 @@ function serializeStaticAttributes(attributes: t.JSXAttribute[]) {
   forEach(attributes, (attr) => {
     if (attr.value) {
       if (t.isStringLiteral(attr.value)) {
-        attrTemplate += $$attr(getTagName(attr.name), unwrapLiteral(attr.value)).t;
+        attrTemplate += $$attr(getTagName(attr.name), serializeLiteral(attr.value)).t;
       } else if (
         t.isJSXExpressionContainer(attr.value)
-        && t.isLiteral(attr.value.expression)
       ) {
-        attrTemplate += $$attr(getTagName(attr.name), unwrapLiteral(attr.value.expression)).t;
+        if (t.isLiteral(attr.value.expression)) {
+          attrTemplate += $$attr(getTagName(attr.name), serializeLiteral(attr.value.expression)).t;
+        } else {
+          attrTemplate += $$attr(getTagName(attr.name), true).t;
+        }
       }
     } else {
       attrTemplate += $$attr(getTagName(attr.name), true).t;
@@ -356,19 +224,22 @@ function serializeClassList(
         classList.push(t.logicalExpression('&&', attr.value, className));
       } else if (
         t.isJSXExpressionContainer(attr.value)
-        && t.isExpression(attr.value.expression)
       ) {
-        // Check if the value is awaited
-        if (isAwaited(attr.value.expression)) {
-          // Move the value up the scope and use the given identifier instead
-          const valueID = block.generateUidIdentifier('v');
-          asyncExpression.push(t.variableDeclarator(
-            valueID,
-            attr.value.expression,
-          ));
-          classList.push(t.logicalExpression('&&', valueID, className));
+        if (t.isExpression(attr.value.expression)) {
+          // Check if the value is awaited
+          if (isAwaited(attr.value.expression)) {
+            // Move the value up the scope and use the given identifier instead
+            const valueID = block.generateUidIdentifier('v');
+            asyncExpression.push(t.variableDeclarator(
+              valueID,
+              attr.value.expression,
+            ));
+            classList.push(t.logicalExpression('&&', valueID, className));
+          } else {
+            classList.push(t.logicalExpression('&&', attr.value.expression, className));
+          }
         } else {
-          classList.push(t.logicalExpression('&&', attr.value.expression, className));
+          classList.push(className);
         }
       } else {
         classList.push(className);
@@ -378,19 +249,22 @@ function serializeClassList(
         classList.push(attr.value);
       } else if (
         t.isJSXExpressionContainer(attr.value)
-        && t.isExpression(attr.value.expression)
       ) {
-        // Check if the value is awaited
-        if (isAwaited(attr.value.expression)) {
-          // Move the value up the scope and use the given identifier instead
-          const valueID = block.generateUidIdentifier('v');
-          asyncExpression.push(t.variableDeclarator(
-            valueID,
-            attr.value.expression,
-          ));
-          classList.push(valueID);
+        if (t.isExpression(attr.value.expression)) {
+          // Check if the value is awaited
+          if (isAwaited(attr.value.expression)) {
+            // Move the value up the scope and use the given identifier instead
+            const valueID = block.generateUidIdentifier('v');
+            asyncExpression.push(t.variableDeclarator(
+              valueID,
+              attr.value.expression,
+            ));
+            classList.push(valueID);
+          } else {
+            classList.push(attr.value.expression);
+          }
         } else {
-          classList.push(attr.value.expression);
+          classList.push(t.stringLiteral(''));
         }
       }
     }
@@ -414,23 +288,24 @@ function serializeStyles(
         ]));
       } else if (
         t.isJSXExpressionContainer(attr.value)
-        && t.isExpression(attr.value.expression)
       ) {
-        // Check if the value is awaited
-        if (isAwaited(attr.value.expression)) {
-          // Move the value up the scope and use the given identifier instead
-          const valueID = block.generateUidIdentifier('v');
-          asyncExpression.push(t.variableDeclarator(
-            valueID,
-            attr.value.expression,
-          ));
-          styles.push(t.objectExpression([
-            t.objectProperty(className, valueID),
-          ]));
-        } else {
-          styles.push(t.objectExpression([
-            t.objectProperty(className, attr.value.expression),
-          ]));
+        if (t.isExpression(attr.value.expression)) {
+          // Check if the value is awaited
+          if (isAwaited(attr.value.expression)) {
+            // Move the value up the scope and use the given identifier instead
+            const valueID = block.generateUidIdentifier('v');
+            asyncExpression.push(t.variableDeclarator(
+              valueID,
+              attr.value.expression,
+            ));
+            styles.push(t.objectExpression([
+              t.objectProperty(className, valueID),
+            ]));
+          } else {
+            styles.push(t.objectExpression([
+              t.objectProperty(className, attr.value.expression),
+            ]));
+          }
         }
       }
     } else if (attr.value) {
@@ -479,24 +354,30 @@ function serializeHTMLArguments(
         ));
       } else if (
         t.isJSXExpressionContainer(attr.value)
-        && t.isExpression(attr.value.expression)
       ) {
-        // Check if the value is awaited
-        if (isAwaited(attr.value.expression)) {
-          // Move the value up the scope and use the given identifier instead
-          const valueID = block.generateUidIdentifier('v');
-          asyncExpression.push(t.variableDeclarator(
-            valueID,
-            attr.value.expression,
-          ));
-          htmlArgs.push(t.callExpression(
-            attrFn,
-            [attrName, valueID],
-          ));
+        if (t.isExpression(attr.value.expression)) {
+          // Check if the value is awaited
+          if (isAwaited(attr.value.expression)) {
+            // Move the value up the scope and use the given identifier instead
+            const valueID = block.generateUidIdentifier('v');
+            asyncExpression.push(t.variableDeclarator(
+              valueID,
+              attr.value.expression,
+            ));
+            htmlArgs.push(t.callExpression(
+              attrFn,
+              [attrName, valueID],
+            ));
+          } else {
+            htmlArgs.push(t.callExpression(
+              attrFn,
+              [attrName, attr.value.expression],
+            ));
+          }
         } else {
           htmlArgs.push(t.callExpression(
             attrFn,
-            [attrName, attr.value.expression],
+            [attrName, t.booleanLiteral(true)],
           ));
         }
       }
@@ -575,6 +456,9 @@ function generateChildren(
     ? resolvedChildren[0]
     : t.arrayExpression(resolvedChildren);
 
+  if (isStatic(result)) {
+    return result;
+  }
   return t.arrowFunctionExpression([], result);
 }
 

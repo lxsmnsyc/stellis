@@ -119,13 +119,13 @@ export function $$node(element: JSX.Element): Resolved {
 }
 
 export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
-  const newOwner: Owner = {
-    parent: OWNER,
-    prefix: OWNER ? createID() : '',
-    index: 0,
-    map: {},
-  };
   return () => {
+    const newOwner: Owner = {
+      parent: OWNER,
+      prefix: OWNER ? createID() : '',
+      index: 0,
+      map: {},
+    };
     const parent = OWNER;
     OWNER = newOwner;
     const result = $$node(Comp(props));

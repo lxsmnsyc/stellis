@@ -7,9 +7,18 @@ import {
 } from './constants';
 import escapeString from './escape-string';
 
+export type Serializable =
+  | string
+  | number
+  | boolean
+  | undefined
+  | bigint
+  | RegExp
+  | null;
+
 function attrInternal(
   name: string,
-  value: number | boolean | string | undefined | null,
+  value: Serializable,
 ): string {
   if (BOOLEANISH_PROPS.has(name)) {
     if (value == null || typeof value === 'number') {
@@ -29,9 +38,9 @@ function attrInternal(
     }
     if (value != null) {
       if (typeof value === 'number') {
-        return `${name}=${String(value)}`;
+        return `${name}="${String(value)}"`;
       }
-      return `${name}="${escapeString(value)}"`;
+      return `${name}="${escapeString(String(value))}"`;
     }
     return '';
   }
@@ -67,7 +76,7 @@ function attrInternal(
 
 export default function $$attr(
   name: string,
-  value: number | boolean | string | undefined | null,
+  value: Serializable,
 ): { t: string } {
   return { t: attrInternal(name, value) };
 }

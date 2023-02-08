@@ -29,7 +29,8 @@ function Parent({ value }) {
 }
 
 render(<>
-  <Parent value="Hello" /> <Parent value="World" />
+  <Parent value="Hello" />
+  <Parent value="World" />
 </>).then(console.log)
 
 `).then(console.log);
