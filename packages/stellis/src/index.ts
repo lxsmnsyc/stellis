@@ -152,22 +152,6 @@ export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
   };
 }
 
-export function $$inject(
-  target: 'body' | 'head',
-  props: JSX.StellisBodyAttributes | JSX.StellisHeadAttributes,
-) {
-  return () => {
-    const type = props.type || 'post';
-    if (OWNER && OWNER.root?.resolved === false) {
-      const content = props['set:html']
-        ? raw(props['set:html'])
-        : props.children;
-      OWNER.root?.[target][type].push(content);
-    }
-    return EMPTY;
-  };
-}
-
 async function resolve(owner: Owner, el: JSX.Element) {
   const prev = OWNER;
   OWNER = owner;
@@ -342,15 +326,58 @@ export function $$style(...values: (JSX.CSSProperties | string)[]): JSX.SafeElem
   return raw(`style="${styleInternal(...values)}"`);
 }
 
+export function $$errorBoundary(
+  { fallback, children }: JSX.StellisErrorBoundaryAttributes,
+): JSX.Element {
+  return async () => {
+    try {
+      return Promise.resolve($$node(children)).catch(fallback);
+    } catch (error) {
+      return fallback(error);
+    }
+  };
+}
+
+export function $$comment({ value }: JSX.StellisCommentAttributes) {
+  return raw(`<!--${$$escape(value, true)}-->`);
+}
+
+export function $$fragment(props: JSX.StellisFragmentAttributes) {
+  if (props[SET_HTML_KEY]) {
+    return raw(props[SET_HTML_KEY]);
+  }
+  return props.children;
+}
+
+export function $$inject(
+  target: 'body' | 'head',
+  props: JSX.StellisBodyAttributes | JSX.StellisHeadAttributes,
+) {
+  return () => {
+    const type = props.type || 'post';
+    if (OWNER && OWNER.root?.resolved === false) {
+      const content = $$fragment(props);
+      OWNER.root?.[target][type].push(content);
+    }
+    return EMPTY;
+  };
+}
+
 export function $$el(
   constructor: string,
-  props: Record<string, JSX.Element>,
+  props: Record<string, any>,
 ): () => JSX.Element {
   return () => {
     let result = `<${constructor}`;
     let content: JSX.Element;
+    let escape = true;
 
     const shouldSkipChildren = VOID_ELEMENTS.test(constructor);
+
+    if (!shouldSkipChildren) {
+      content = $$fragment(props as JSX.StellisFragmentAttributes);
+      escape = !(SET_HTML_KEY in props);
+    }
 
     const keys = Object.keys(props);
 
@@ -359,12 +386,9 @@ export function $$el(
     const classes: JSX.ClassList[] = [];
     let attrs = '';
 
-    let escape = true;
-
     forEach(keys, (k) => {
-      if (!shouldSkipChildren && (k === CHILDREN_KEY || k === SET_HTML_KEY)) {
-        escape = k === SET_HTML_KEY;
-        content = props[k];
+      if (k === CHILDREN_KEY || k === SET_HTML_KEY) {
+        // no-op
       } else if (k === 'style') {
         const value = props[k] as string | Record<string, string> | undefined;
         if (value != null) {
@@ -411,32 +435,12 @@ export function $$el(
         t: `${result}/>`,
       };
     }
+    if (content && typeof content === 'object' && 't' in content) {
+      return raw(`${result}>${content.t}</${constructor}>`);
+    }
     const rendered = [raw(`${result}>`), content, raw(`</${constructor}>`)];
     return $$node(rendered, escape);
   };
-}
-
-export function $$errorBoundary(
-  { fallback, children }: JSX.StellisErrorBoundaryAttributes,
-): JSX.Element {
-  return async () => {
-    try {
-      return Promise.resolve($$node(children)).catch(fallback);
-    } catch (error) {
-      return fallback(error);
-    }
-  };
-}
-
-export function $$comment({ value }: JSX.StellisCommentAttributes) {
-  return raw(`<!--${$$escape(value, true)}-->`);
-}
-
-export function $$fragment(props: JSX.StellisFragmentAttributes) {
-  if (props['set:html']) {
-    return raw(props['set:html']);
-  }
-  return props.children;
 }
 
 export type Elements = keyof JSX.IntrinsicElements;
