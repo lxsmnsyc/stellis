@@ -535,7 +535,6 @@ function createBuiltinComponent(
           ),
         ],
       );
-      break;
     case 'error-boundary':
       return t.callExpression(
         getImportIdentifier(ctx, path, IMPORTS.errorBoundary),
@@ -549,7 +548,6 @@ function createBuiltinComponent(
           ),
         ],
       );
-      break;
     case 'fragment':
       return t.callExpression(
         getImportIdentifier(ctx, path, IMPORTS.fragment),
@@ -563,7 +561,6 @@ function createBuiltinComponent(
           ),
         ],
       );
-      break;
     case 'comment':
       return t.callExpression(
         getImportIdentifier(ctx, path, IMPORTS.comment),

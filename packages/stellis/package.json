@@ -80,12 +80,24 @@
       "require": "./dist/cjs/production/babel.cjs",
       "import": "./dist/esm/production/babel.mjs",
       "types": "./dist/types/babel/index.d.ts"
+    },
+    "./jsx-runtime": {
+      "development": {
+        "require": "./dist/cjs/development/jsx-runtime.cjs",
+        "import": "./dist/esm/development/jsx-runtime.mjs"
+      },
+      "require": "./dist/cjs/production/jsx-runtime.cjs",
+      "import": "./dist/esm/production/jsx-runtime.mjs",
+      "types": "./dist/types/jsx-runtime/index.d.ts"
     }
   },
   "typesVersions": {
     "*": {
       "babel": [
         "./dist/types/babel/index.d.ts"
+      ],
+      "jsx-runtime": [
+        "./dist/types/jsx-runtime/index.d.ts"
       ]
     }
   }

@@ -17,6 +17,5 @@ async function transform(code) {
 transform(`
 import { render } from 'stellis';
 
-console.log(await render(<div set:html="<script>Hello World</script>" />));
-console.log(await render(<div><>{'<script>Hello World</script>'}</></div>));
+console.log(await render(<stellis:comment value="<script>Hello World</script>" />));
 `).then(console.log);

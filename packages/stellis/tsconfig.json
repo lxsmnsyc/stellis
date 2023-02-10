@@ -1,6 +1,6 @@
 {
   "exclude": ["node_modules"],
-  "include": ["src", "types", "shared", "babel"],
+  "include": ["src", "types", "shared", "babel", "jsx-runtime"],
   "compilerOptions": {
     "module": "ESNext",
     "lib": ["ESNext", "DOM"],
