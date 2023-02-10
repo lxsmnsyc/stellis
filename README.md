@@ -102,13 +102,17 @@ async function Profile({ id }) {
 
 #### `set:html`
 
+Sets the raw HTML content of the given element. Always takes priority over `children`.
+
 ```js
 <div set:html="<script>Hello World</script>" />
 ```
 
 ### Built-in Components
 
-#### `ErrorBoundary`
+#### `ErrorBoundary`/`<stellis:boundary>`
+
+Attempts to render `children`. If it receives an error, `fallback` is called with the received error and the result is rendered instead.
 
 ```js
 import { ErrorBoundary, render } from 'stellis';
@@ -129,6 +133,24 @@ const result = await render(
 );
 console.log(result);
 // Output: <h1>Error: Error</h1><p>Message: Example</p>
+```
+
+#### `Fragment`/`<stellis:fragment>`
+
+Same behavior as `<></>` except this allows raw HTML output with `set:html`
+
+```js
+<Fragment set:html="<script>Hello World</script>" />
+<stellis:fragment set:html="<script>Hello World</script>" />
+```
+
+#### `Comment`/`<stellis:comment>`
+
+Allow inserting HTML comments
+
+```js
+<stellis:comment value="This is a comment." />
+// Output: <!--This is a comment.-->
 ```
 
 #### `Dynamic`
@@ -179,9 +201,11 @@ console.log(result);
 // <h1>Bonjour World</h1><h1>Hello World</h1>
 ```
 
-### Stellis namespace
+### Stellis meta
 
-#### `<stellis:head>`
+Built-in components that renders after the markup has resolved. Both `<stellis:head>` and `<stellis:body>` has the types `"pre"` and `"post"` which defines where the children are going to be injected.
+
+#### `Head`/`<stellis:head>`
 
 ```js
 <stellis:head type="pre">
@@ -189,7 +213,7 @@ console.log(result);
 </stellis:head>
 ```
 
-#### `<stellis:body>`
+#### `Body`/`<stellis:body>`
 
 ```js
 <stellis:body type="post">
