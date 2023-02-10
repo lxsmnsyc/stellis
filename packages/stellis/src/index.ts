@@ -443,6 +443,48 @@ export function $$el(
   };
 }
 
+type GuaranteeArray<T> = T extends Array<any>
+  ? T
+  : T[];
+
+export type ExtractChildren<T extends Constructor, P = ExtractProps<T>> =
+  P extends { children: infer U }
+    ? GuaranteeArray<U>
+    : never;
+
+export function h<T extends Constructor>(
+  el: T,
+  props: ExtractProps<T> | undefined | null,
+  ...children: ExtractChildren<T>
+) {
+  return () => {
+    if (typeof el === 'function') {
+      return $$component(el, {
+        ...props,
+        children,
+      });
+    }
+    return $$el(el, {
+      ...props,
+      children,
+    });
+  };
+}
+
+export function jsx<T extends Constructor>(
+  el: T,
+  props: ExtractProps<T>,
+) {
+  return () => {
+    if (typeof el === 'function') {
+      return $$component(el, props);
+    }
+    return $$el(el, props);
+  };
+}
+
+export { jsx as jsxs, jsx as jsxDEV };
+
 export type Elements = keyof JSX.IntrinsicElements;
 export type Constructor =
   | Elements
@@ -470,15 +512,10 @@ export type DynamicProps<T extends Constructor> =
 export function Dynamic<T extends Constructor>(
   { component, ...props }: DynamicProps<T>,
 ): JSX.Element {
-  return () => {
-    if (component) {
-      if (typeof component === 'function') {
-        return $$component(component, props);
-      }
-      return $$el(component, props);
-    }
-    return EMPTY;
-  };
+  if (component) {
+    return jsx(component, props as ExtractProps<T>);
+  }
+  return EMPTY;
 }
 
 export type FragmentProps = JSX.StellisFragmentAttributes;

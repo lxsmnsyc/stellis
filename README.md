@@ -4,8 +4,6 @@
 
 [![NPM](https://img.shields.io/npm/v/stellis.svg)](https://www.npmjs.com/package/stellis) [![JavaScript Style Guide](https://badgen.net/badge/code%20style/airbnb/ff5a5f?icon=airbnb)](https://github.com/airbnb/javascript)
 
-## Setup
-
 ### Install
 
 ```bash
@@ -19,6 +17,97 @@ yarn add stellis
 ```bash
 pnpm add stellis
 ```
+
+## Setup for classic JSX
+
+### Comment pragmas (Babel, Typescript, ESBuild etc.)
+
+- Automatic runtime
+
+  ```js
+  /* @jsxRuntime automatic */
+  /* @jsxImportSource stellis */
+  ```
+
+- Classic runtime
+
+  ```js
+  /* @jsxRuntime classic */
+  /* @jsx h */
+  /* @jsxFrag Fragment */
+  import { h, Fragment } from 'stellis';
+  ```
+
+### Typescript
+
+Reference: https://www.typescriptlang.org/docs/handbook/jsx.html#configuring-jsx
+
+- Automatic runtime
+
+  ```json
+  {
+    "compilerOptions": {
+      "jsx": "react-jsx", // or "react-jsxdev"
+      "jsxImportSource": "stellis",
+    }
+  }
+  ```
+
+- Classic runtime
+
+  ```json
+  {
+    "compilerOptions": {
+      "jsx": "react",
+      "jsxFactory": "h",
+      "jsxFragmentFactory": "Fragment"
+    }
+  }
+  ```
+
+```js
+import { h, Fragment } from 'stellis';
+```
+
+### ESBuild
+
+Reference: https://esbuild.github.io/api/#transformation
+
+- Automatic runtime
+  - CLI
+
+    ```bash
+    esbuild --jsx=automatic --jsx-import-source="stellis" --jsx-dev
+    ```
+
+  - Options
+
+    ```js
+    const option = {
+      jsx: 'automatic',
+      jsxDev: true | false,
+      jsxImportSource: 'stellis',
+    };
+    ```
+
+- Classic runtime (as options)
+  - CLI
+
+    ```bash
+    esbuild --jsx=transform --jsx-factory=h --jsx-fragment=Fragment
+    ```
+
+  - Options
+
+    ```js
+    const option = {
+      jsx: 'transform',
+      jsxFactory: 'h',
+      jsxFragment: 'Fragment',
+    };
+    ```
+
+## Setup for optimized JSX
 
 ### Babel
 
