@@ -16,7 +16,10 @@ function escapeChar(str: string, value: string, replacement: string): string {
   return result;
 }
 
-export default function $$escape(value: string): string {
+export default function $$escape(value: string, asComment = false): string {
+  if (asComment) {
+    return escapeChar(escapeChar(value, '>', '&gt;'), '<', '&lt;');
+  }
   const noAmp = escapeChar(value, '&', '&amp;');
   const noQuotes = escapeChar(noAmp, '"', '&quot;');
   const noLT = escapeChar(noQuotes, '<', '&lt;');
