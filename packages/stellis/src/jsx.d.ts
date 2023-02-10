@@ -38,17 +38,40 @@ export namespace JSX {
     (): Element;
   }
 
-  interface StellisHeadAttributes {
+  interface StellisSetDirectives {
+    html?: string;
+  }
+  type StellisAttributes = {
+    [Key in keyof StellisSetDirectives as `set:${Key}`]?: StellisSetDirectives[Key];
+  };
+  interface StellisHeadAttributes extends StellisAttributes {
     type: 'pre' | 'post';
     children: JSX.Element;
   }
-  interface StellisBodyAttributes {
+  interface StellisBodyAttributes extends StellisAttributes {
     type: 'pre' | 'post';
     children: JSX.Element;
   }
+
+  interface StellisErrorBoundaryAttributes {
+    fallback: (error: unknown) => JSX.Element;
+    children: JSX.Element;
+  }
+
+  interface StellisFragmentAttributes extends StellisAttributes {
+    children: JSX.Element;
+  }
+
+  interface StellisCommentAttributes {
+    value: string
+  }
+
   interface StellisNamespace {
     head: StellisHeadAttributes;
     body: StellisBodyAttributes;
+    'error-boundary': StellisErrorBoundaryAttributes;
+    fragment: StellisFragmentAttributes;
+    comment: StellisCommentAttributes;
   }
 
   type StellisElements = {
@@ -69,13 +92,7 @@ export namespace JSX {
   }
   interface CustomAttributes<T> {
   }
-  interface SetDirectives {
-    html?: string;
-  }
   interface ExplicitAttributes {}
-  type StellisAttributes = {
-    [Key in keyof SetDirectives as `set:${Key}`]?: SetDirectives[Key];
-  };
   interface DOMAttributes<T>
     extends CustomAttributes<T>, StellisAttributes {
     children?: Element;

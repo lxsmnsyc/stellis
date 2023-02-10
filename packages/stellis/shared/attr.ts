@@ -6,6 +6,7 @@ import {
   POSITIVE_NUMERIC_PROPS,
 } from './constants';
 import $$escape from './escape-string';
+import raw from './raw';
 
 export type Serializable =
   | string
@@ -78,5 +79,5 @@ export default function $$attr(
   name: string,
   value: Serializable,
 ): { t: string } {
-  return { t: attrInternal(name, value) };
+  return raw(attrInternal(name, value));
 }

@@ -28,6 +28,9 @@ const IMPORTS = {
   style: '$$style',
   el: '$$el',
   inject: '$$inject',
+  errorBoundary: '$$errorBoundary',
+  comment: '$$comment',
+  fragment: '$$fragment',
 };
 
 interface StateContext {
@@ -509,6 +512,76 @@ function finalizeNode(
   }
 }
 
+function createBuiltinComponent(
+  ctx: StateContext,
+  path: babel.NodePath<t.JSXElement>,
+  name: t.JSXNamespacedName,
+  block: Scope,
+  asyncExpression: t.VariableDeclarator[],
+) {
+  switch (name.name.name) {
+    case 'head':
+    case 'body':
+      return t.callExpression(
+        getImportIdentifier(ctx, path, IMPORTS.inject),
+        [
+          t.stringLiteral(name.name.name),
+          t.objectExpression(
+            convertAttributesToObject(
+              block,
+              asyncExpression,
+              path.node,
+            ),
+          ),
+        ],
+      );
+      break;
+    case 'error-boundary':
+      return t.callExpression(
+        getImportIdentifier(ctx, path, IMPORTS.errorBoundary),
+        [
+          t.objectExpression(
+            convertAttributesToObject(
+              block,
+              asyncExpression,
+              path.node,
+            ),
+          ),
+        ],
+      );
+      break;
+    case 'fragment':
+      return t.callExpression(
+        getImportIdentifier(ctx, path, IMPORTS.fragment),
+        [
+          t.objectExpression(
+            convertAttributesToObject(
+              block,
+              asyncExpression,
+              path.node,
+            ),
+          ),
+        ],
+      );
+      break;
+    case 'comment':
+      return t.callExpression(
+        getImportIdentifier(ctx, path, IMPORTS.comment),
+        [
+          t.objectExpression(
+            convertAttributesToObject(
+              block,
+              asyncExpression,
+              path.node,
+            ),
+          ),
+        ],
+      );
+    default:
+      return generateChildren(path.node.children);
+  }
+}
+
 function createElement(
   ctx: StateContext,
   path: babel.NodePath<t.JSXElement>,
@@ -521,23 +594,7 @@ function createElement(
   let htmlResult: t.Expression | undefined;
 
   if (t.isJSXNamespacedName(name) && name.namespace.name === 'stellis') {
-    if (name.name.name === 'head' || name.name.name === 'body') {
-      const properties = convertAttributesToObject(
-        block,
-        asyncExpression,
-        path.node,
-      );
-
-      htmlResult = t.callExpression(
-        getImportIdentifier(ctx, path, IMPORTS.inject),
-        [
-          t.stringLiteral(name.name.name),
-          t.objectExpression(properties),
-        ],
-      );
-    } else {
-      htmlResult = generateChildren(path.node.children);
-    }
+    htmlResult = createBuiltinComponent(ctx, path, name, block, asyncExpression);
   } else {
     // Convert name to string
     const tagName = getTagName(name);

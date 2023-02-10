@@ -1,10 +1,13 @@
 import type { JSX } from './jsx';
 import $$attr from '../shared/attr';
 import $$escape from '../shared/escape-string';
+import raw, { EMPTY } from '../shared/raw';
 import { forEach, join } from '../shared/arrays';
 import { CHILDREN_KEY, SET_HTML_KEY, VOID_ELEMENTS } from '../shared/constants';
 
-export { JSX, $$attr, $$escape };
+export {
+  JSX, $$attr, $$escape,
+};
 
 interface Injector {
   pre: JSX.Element[];
@@ -81,7 +84,7 @@ function reconcileResolvedArray(resolved: Resolved[]): Resolved {
     forEach(items, (item) => {
       result += item.t;
     });
-    return { t: result };
+    return raw(result);
   });
 }
 
@@ -92,14 +95,14 @@ export function $$node(element: JSX.Element, escape = true): Resolved {
     || element === true
     || element === false
   ) {
-    return { t: '' };
+    return EMPTY;
   }
   // return for number or strings
   if (typeof element === 'number') {
-    return { t: `${element}` };
+    return raw(`${element}`);
   }
   if (typeof element === 'string') {
-    return { t: escape ? $$escape(element) : element };
+    return raw(escape ? $$escape(element) : element);
   }
   if (typeof element === 'function') {
     return $$node(element());
@@ -109,7 +112,7 @@ export function $$node(element: JSX.Element, escape = true): Resolved {
   }
   if (Array.isArray(element)) {
     if (element.length === 0) {
-      return { t: '' };
+      return EMPTY;
     }
     if (element.length === 1) {
       return $$node(element[0]);
@@ -151,13 +154,17 @@ export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
 
 export function $$inject(
   target: 'body' | 'head',
-  { type = 'post', children }: JSX.StellisBodyAttributes | JSX.StellisHeadAttributes,
+  props: JSX.StellisBodyAttributes | JSX.StellisHeadAttributes,
 ) {
   return () => {
+    const type = props.type || 'post';
     if (OWNER && OWNER.root?.resolved === false) {
-      OWNER.root?.[target][type].push(children);
+      const content = props['set:html']
+        ? raw(props['set:html'])
+        : props.children;
+      OWNER.root?.[target][type].push(content);
     }
-    return { t: '' };
+    return EMPTY;
   };
 }
 
@@ -273,7 +280,7 @@ export function $$html(
   return () => {
     const resolved: JSX.Element = [];
     forEach(templates, (template, i) => {
-      resolved.push({ t: template });
+      resolved.push(raw(template));
       if (nodes[i]) {
         resolved.push(nodes[i]);
       }
@@ -307,7 +314,7 @@ function classInternal(...classes: JSX.ClassList[]): string {
 }
 
 export function $$class(...classes: JSX.ClassList[]): JSX.SafeElement {
-  return { t: `class="${classInternal(...classes)}"` };
+  return raw(`class="${classInternal(...classes)}"`);
 }
 
 function styleInternal(...values: (JSX.CSSProperties | string)[]): string {
@@ -332,7 +339,7 @@ function styleInternal(...values: (JSX.CSSProperties | string)[]): string {
 }
 
 export function $$style(...values: (JSX.CSSProperties | string)[]): JSX.SafeElement {
-  return { t: `style="${styleInternal(...values)}"` };
+  return raw(`style="${styleInternal(...values)}"`);
 }
 
 export function $$el(
@@ -404,17 +411,14 @@ export function $$el(
         t: `${result}/>`,
       };
     }
-    const rendered = [{ t: `${result}>` }, content, { t: `</${constructor}>` }];
+    const rendered = [raw(`${result}>`), content, raw(`</${constructor}>`)];
     return $$node(rendered, escape);
   };
 }
 
-export interface ErrorBoundaryProps {
-  fallback: (error: unknown) => JSX.Element;
-  children: JSX.Element;
-}
-
-export function ErrorBoundary({ fallback, children }: ErrorBoundaryProps): JSX.Element {
+export function $$errorBoundary(
+  { fallback, children }: JSX.StellisErrorBoundaryAttributes,
+): JSX.Element {
   return async () => {
     try {
       return Promise.resolve($$node(children)).catch(fallback);
@@ -422,6 +426,17 @@ export function ErrorBoundary({ fallback, children }: ErrorBoundaryProps): JSX.E
       return fallback(error);
     }
   };
+}
+
+export function $$comment({ value }: JSX.StellisCommentAttributes) {
+  return raw(`<!--${value}-->`);
+}
+
+export function $$fragment(props: JSX.StellisFragmentAttributes) {
+  if (props['set:html']) {
+    return raw(props['set:html']);
+  }
+  return props.children;
 }
 
 export type Elements = keyof JSX.IntrinsicElements;
@@ -458,6 +473,36 @@ export function Dynamic<T extends Constructor>(
       }
       return $$el(component, props);
     }
-    return { t: '' };
+    return EMPTY;
   };
+}
+
+export type FragmentProps = JSX.StellisFragmentAttributes;
+
+export function Fragment(props: FragmentProps) {
+  return $$fragment(props);
+}
+
+export type CommentProps = JSX.StellisCommentAttributes;
+
+export function Comment(props: CommentProps) {
+  return $$comment(props);
+}
+
+export type HeadProps = JSX.StellisHeadAttributes;
+
+export function Head(props: HeadProps) {
+  return $$inject('head', props);
+}
+
+export type BodyProps = JSX.StellisBodyAttributes;
+
+export function Body(props: HeadProps) {
+  return $$inject('body', props);
+}
+
+export type ErrorBoundaryProps = JSX.StellisErrorBoundaryAttributes;
+
+export function ErrorBoundary(props: ErrorBoundaryProps): JSX.Element {
+  return $$errorBoundary(props);
 }
