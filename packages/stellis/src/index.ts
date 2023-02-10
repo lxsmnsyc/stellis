@@ -223,8 +223,11 @@ async function resolveInject(owner: Owner, root: Root, result: string) {
     if (headMatch) {
       state = state.replace(headMatch[0], `${headMatch[0]}${preHead}`);
       if (/<\/head>/i.test(state)) {
-        const replacement = `${postHead}${preBody}${postBody}`;
-        state = state.replace('</head>', `${replacement}</head>`);
+        state = state.replace('</head>', `${postHead}</head>`);
+        if (!bodyMatch) {
+          state = state.replace('</head>', `</head>${preBody}`);
+          state = `${state}${postBody}`;
+        }
       } else {
         throw new Error('Missing </head>');
       }
