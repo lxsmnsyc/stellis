@@ -429,7 +429,7 @@ export function $$errorBoundary(
 }
 
 export function $$comment({ value }: JSX.StellisCommentAttributes) {
-  return raw(`<!--${value}-->`);
+  return raw(`<!--${$$escape(value, true)}-->`);
 }
 
 export function $$fragment(props: JSX.StellisFragmentAttributes) {
