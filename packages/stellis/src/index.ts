@@ -4,6 +4,7 @@ import $$escape from '../shared/escape-string';
 import raw, { EMPTY } from '../shared/raw';
 import { forEach, join } from '../shared/arrays';
 import { CHILDREN_KEY, SET_HTML_KEY, VOID_ELEMENTS } from '../shared/constants';
+import assert from '../shared/assert';
 
 export {
   JSX, $$attr, $$escape,
@@ -66,12 +67,10 @@ export function getContext<T>(key: ContextKey<T>): T {
 export type Component<P> = (props: P) => JSX.Element;
 
 export function createID(): string {
-  if (OWNER) {
-    const result = OWNER.prefix ? `${OWNER.prefix}-${OWNER.index}` : `${OWNER.index}`;
-    OWNER.index += 1;
-    return result;
-  }
-  throw new Error('Unable to use createID outside of render');
+  assert(OWNER, new Error('Unable to use createID outside of render'));
+  const result = OWNER.prefix ? `${OWNER.prefix}-${OWNER.index}` : `${OWNER.index}`;
+  OWNER.index += 1;
+  return result;
 }
 
 type Resolved =
@@ -175,11 +174,8 @@ async function resolveInject(owner: Owner, root: Root, result: string) {
     const headMatch = /<head\b[^>]*>/i.exec(state);
     if (headMatch) {
       state = state.replace(headMatch[0], `${headMatch[0]}${preHead}`);
-      if (/<\/head>/i.test(state)) {
-        state = state.replace('</head>', `${postHead}</head>`);
-      } else {
-        throw new Error('Missing </head>');
-      }
+      assert(!/<\/head>/i.test(state), new Error('Missing </head>'));
+      state = state.replace('</head>', `${postHead}</head>`);
     } else {
       // Create a head
       state = state.replace(htmlMatch[0], `${htmlMatch[0]}<head>${preHead}${postHead}</head>`);
@@ -188,11 +184,8 @@ async function resolveInject(owner: Owner, root: Root, result: string) {
     const bodyMatch = /<body\b[^>]*>/i.exec(state);
     if (bodyMatch) {
       state = state.replace(bodyMatch[0], `${bodyMatch[0]}${preBody}`);
-      if (/<\/body>/i.test(state)) {
-        state = state.replace('</body>', `${postBody}</body>`);
-      } else {
-        throw new Error('Missing </body>');
-      }
+      assert(!/<\/body>/i.test(state), new Error('Missing </body>'));
+      state = state.replace('</body>', `${postBody}</body>`);
     } else {
       state = state.replace('</head>', `</head><body>${preHead}`);
       state = state.replace('</html>', `${postHead}</body></html>`);
@@ -203,24 +196,18 @@ async function resolveInject(owner: Owner, root: Root, result: string) {
     const bodyMatch = /<body\b[^>]*>/i.exec(state);
     if (bodyMatch) {
       state = state.replace(bodyMatch[0], `${bodyMatch[0]}${preBody}`);
-      if (/<\/body>/i.test(state)) {
-        state = state.replace('</body>', `${postBody}</body>`);
-      } else {
-        throw new Error('Missing </body>');
-      }
+      assert(!/<\/body>/i.test(state), new Error('Missing </body>'));
+      state = state.replace('</body>', `${postBody}</body>`);
     } else if (!headMatch) {
       state = `${preBody}${state}${postBody}`;
     }
     if (headMatch) {
       state = state.replace(headMatch[0], `${headMatch[0]}${preHead}`);
-      if (/<\/head>/i.test(state)) {
-        state = state.replace('</head>', `${postHead}</head>`);
-        if (!bodyMatch) {
-          state = state.replace('</head>', `</head>${preBody}`);
-          state = `${state}${postBody}`;
-        }
-      } else {
-        throw new Error('Missing </head>');
+      assert(!/<\/head>/i.test(state), new Error('Missing </head>'));
+      state = state.replace('</head>', `${postHead}</head>`);
+      if (!bodyMatch) {
+        state = state.replace('</head>', `</head>${preBody}`);
+        state = `${state}${postBody}`;
       }
     } else {
       state = `${preHead}${postHead}${state}`;

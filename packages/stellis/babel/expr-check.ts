@@ -6,6 +6,7 @@
 /* eslint-disable no-bitwise */
 import * as t from '@babel/types';
 import { every, forEach, some } from '../shared/arrays';
+import assert from '../shared/assert';
 import { Serializable } from '../shared/attr';
 
 export function unwrapLiteral(node: t.Expression): Serializable {
@@ -72,9 +73,7 @@ export function unwrapLiteral(node: t.Expression): Serializable {
     return test ? consequent : alternate;
   }
   if (t.isBinaryExpression(node)) {
-    if (t.isPrivateName(node.left)) {
-      throw new Error('Unexpected private name on BinaryExpression');
-    }
+    assert(!t.isPrivateName(node.left), new Error('Unexpected private name on BinaryExpression'));
     const left = unwrapLiteral(node.left) as any;
     const right = unwrapLiteral(node.right) as any;
     switch (node.operator) {
@@ -102,17 +101,15 @@ export function unwrapLiteral(node: t.Expression): Serializable {
         throw new Error('Unexpected BinaryExpression during literal unwrap');
     }
   }
-  if (t.isLogicalExpression(node)) {
-    const left = unwrapLiteral(node.left) as any;
-    const right = unwrapLiteral(node.right) as any;
-    switch (node.operator) {
-      case '&&': return left && right;
-      case '??': return left ?? right;
-      case '||': return left || right;
-      default: return undefined;
-    }
+  assert(t.isLogicalExpression(node), new Error('Attempted to unwrap a non-guaranteed literal'));
+  const left = unwrapLiteral(node.left) as any;
+  const right = unwrapLiteral(node.right) as any;
+  switch (node.operator) {
+    case '&&': return left && right;
+    case '??': return left ?? right;
+    case '||': return left || right;
+    default: return undefined;
   }
-  throw new Error('Attempted to unwrap a non-guaranteed literal');
 }
 
 export function serializeLiteral(node: t.Expression): string {
