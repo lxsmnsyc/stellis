@@ -310,6 +310,10 @@ Built-in components that renders after the markup has resolved. Both `<stellis:h
 </stellis:body>
 ```
 
+## Sponsors
+
+![Sponsors](https://github.com/lxsmnsyc/sponsors/blob/main/sponsors.svg?raw=true)
+
 ## License
 
 MIT © [lxsmnsyc](https://github.com/lxsmnsyc)
