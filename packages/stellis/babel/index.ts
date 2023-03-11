@@ -448,47 +448,49 @@ function serializeHTMLArguments(
 ) {
   const htmlArgs: t.Expression[] = [];
 
-  const attrFn = getImportIdentifier(ctx, path, IMPORTS.attr);
-  // Solve class
-  forEach(attributes, (attr) => {
-    const attrName = t.stringLiteral(getTagName(attr.name));
-    if (attr.value) {
-      if (t.isStringLiteral(attr.value)) {
-        htmlArgs.push(t.callExpression(
-          attrFn,
-          [attrName, attr.value],
-        ));
-      } else if (
-        t.isJSXExpressionContainer(attr.value)
-      ) {
-        if (t.isExpression(attr.value.expression)) {
-          // Check if the value is awaited
-          if (isAwaited(attr.value.expression)) {
-            // Move the value up the scope and use the given identifier instead
-            const valueID = block.generateUidIdentifier('v');
-            asyncExpression.push(t.variableDeclarator(
-              valueID,
-              attr.value.expression,
-            ));
-            htmlArgs.push(t.callExpression(
-              attrFn,
-              [attrName, valueID],
-            ));
+  if (attributes.length) {
+    const attrFn = getImportIdentifier(ctx, path, IMPORTS.attr);
+    // Solve class
+    forEach(attributes, (attr) => {
+      const attrName = t.stringLiteral(getTagName(attr.name));
+      if (attr.value) {
+        if (t.isStringLiteral(attr.value)) {
+          htmlArgs.push(t.callExpression(
+            attrFn,
+            [attrName, attr.value],
+          ));
+        } else if (
+          t.isJSXExpressionContainer(attr.value)
+        ) {
+          if (t.isExpression(attr.value.expression)) {
+            // Check if the value is awaited
+            if (isAwaited(attr.value.expression)) {
+              // Move the value up the scope and use the given identifier instead
+              const valueID = block.generateUidIdentifier('v');
+              asyncExpression.push(t.variableDeclarator(
+                valueID,
+                attr.value.expression,
+              ));
+              htmlArgs.push(t.callExpression(
+                attrFn,
+                [attrName, valueID],
+              ));
+            } else {
+              htmlArgs.push(t.callExpression(
+                attrFn,
+                [attrName, attr.value.expression],
+              ));
+            }
           } else {
             htmlArgs.push(t.callExpression(
               attrFn,
-              [attrName, attr.value.expression],
+              [attrName, t.booleanLiteral(true)],
             ));
           }
-        } else {
-          htmlArgs.push(t.callExpression(
-            attrFn,
-            [attrName, t.booleanLiteral(true)],
-          ));
         }
       }
-    }
-  });
+    });
+  }
 
   return htmlArgs;
 }
