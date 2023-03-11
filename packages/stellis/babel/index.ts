@@ -96,6 +96,7 @@ function optimizeChildren(
 }
 
 function generateChildren(
+  block: Scope,
   children: (t.JSXElement | t.JSXFragment)['children'],
 ) {
   const resolvedChildren: t.Expression[] = [];
@@ -110,10 +111,10 @@ function generateChildren(
     if (t.isJSXElement(child)) {
       resolvedChildren.push(child);
     } else if (t.isJSXFragment(child)) {
-      resolvedChildren.push(generateChildren(child.children));
+      resolvedChildren.push(generateChildren(block, child.children));
     } else if (t.isExpression(child)) {
       if (isAwaited(child)) {
-        const id = t.identifier('v');
+        const id = block.generateUidIdentifier('v');
         resolvedChildren.push(
           t.arrowFunctionExpression(
             [id],
@@ -128,7 +129,7 @@ function generateChildren(
         resolvedChildren.push(child);
       }
     } else if (isAwaited(child.expression)) {
-      const id = t.identifier('v');
+      const id = block.generateUidIdentifier('v');
       resolvedChildren.push(
         t.arrowFunctionExpression(
           [id],
@@ -153,6 +154,17 @@ function generateChildren(
     return result;
   }
   return t.arrowFunctionExpression([], result);
+}
+
+// Test if key is a valid number or JS identifier
+// so that we don't have to serialize the key and wrap with brackets
+function isIdentifierString(str: string): boolean {
+  const check = Number(str);
+
+  return (
+    check >= 0
+    || (Number.isNaN(check) && /^([$A-Z_][0-9A-Z_$]*)$/i.test(str))
+  );
 }
 
 function convertAttributesToObject(
@@ -190,13 +202,8 @@ function convertAttributesToObject(
         expr = attr.value.expression;
       }
       if (expr) {
-        const check = Number(attrName);
-        // Test if key is a valid number or JS identifier
-        // so that we don't have to serialize the key and wrap with brackets
-        const attrID =(
-          check >= 0
-          || (Number.isNaN(check) && /^([$A-Z_][0-9A-Z_$]*)$/i.test(attrName))
-        ) ? t.identifier(attrName)
+        const attrID = isIdentifierString(attrName)
+          ? t.identifier(attrName)
           : t.stringLiteral(attrName);
 
         if (isAwaited(expr)) {
@@ -217,7 +224,7 @@ function convertAttributesToObject(
     properties.push(
       t.objectProperty(
         t.identifier('children'),
-        generateChildren(el.children),
+        generateChildren(block, el.children),
       ),
     );
   }
@@ -334,7 +341,8 @@ function serializeClassList(
   // Solve class
   forEach(attributes, (attr) => {
     if (t.isJSXNamespacedName(attr.name)) {
-      const className = t.stringLiteral(attr.name.name.name);
+      const attrName = attr.name.name.name;
+      const className = t.stringLiteral(attrName);
       if (t.isStringLiteral(attr.value)) {
         classList.push(t.logicalExpression('&&', attr.value, className));
       } else if (
@@ -396,10 +404,13 @@ function serializeStyles(
   // Solve styles
   forEach(attributes, (attr) => {
     if (t.isJSXNamespacedName(attr.name)) {
-      const className = t.stringLiteral(attr.name.name.name);
+      const attrName = attr.name.name.name;
+      const styleName = isIdentifierString(attrName)
+        ? t.identifier(attrName)
+        : t.stringLiteral(attrName);
       if (t.isStringLiteral(attr.value)) {
         styles.push(t.objectExpression([
-          t.objectProperty(className, attr.value),
+          t.objectProperty(styleName, attr.value),
         ]));
       } else if (
         t.isJSXExpressionContainer(attr.value)
@@ -414,11 +425,11 @@ function serializeStyles(
               attr.value.expression,
             ));
             styles.push(t.objectExpression([
-              t.objectProperty(className, valueID),
+              t.objectProperty(styleName, valueID),
             ]));
           } else {
             styles.push(t.objectExpression([
-              t.objectProperty(className, attr.value.expression),
+              t.objectProperty(styleName, attr.value.expression),
             ]));
           }
         }
@@ -586,7 +597,7 @@ function createBuiltinComponent(
         ],
       );
     default:
-      return generateChildren(path.node.children);
+      return generateChildren(block, path.node.children);
   }
 }
 
@@ -684,7 +695,7 @@ function createElement(
           }
           shouldEscape.value = false;
         } else {
-          const children = generateChildren(path.node.children);
+          const children = generateChildren(block, path.node.children);
           if (isGuaranteedLiteral(children)) {
             template[template.length - 1].value += `${$$escape(serializeLiteral(children))}</${tagName}>`;
           } else {
@@ -748,7 +759,7 @@ function createComponent(
 function createFragment(
   path: babel.NodePath<t.JSXFragment>,
 ) {
-  path.replaceWith(generateChildren(path.node.children));
+  path.replaceWith(generateChildren(path.scope.getBlockParent(), path.node.children));
 }
 
 interface State extends babel.PluginPass {
