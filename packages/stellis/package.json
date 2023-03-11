@@ -17,16 +17,16 @@
     "@babel/core": "^7"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.12",
+    "@babel/core": "^7.21.0",
     "@types/babel__core": "^7.20.0",
     "@types/babel__traverse": "^7.18.3",
-    "@types/node": "^18.11.18",
-    "eslint": "^8.32.0",
+    "@types/node": "^18.15.0",
+    "eslint": "^8.35.0",
     "eslint-config-lxsmnsyc": "^0.4.8",
-    "pridepack": "2.4.0",
-    "tslib": "^2.4.1",
-    "typescript": "^4.9.4",
-    "vitest": "^0.28.1"
+    "pridepack": "2.4.1",
+    "tslib": "^2.5.0",
+    "typescript": "^4.9.5",
+    "vitest": "^0.29.2"
   },
   "scripts": {
     "prepublishOnly": "pridepack clean && pridepack build",
@@ -40,23 +40,23 @@
     "test": "vitest"
   },
   "private": false,
-  "description": "",
+  "description": "No VDOM JSX Framework for SSR",
   "repository": {
-    "url": "",
+    "url": "https://github.com/lxsmnsyc/stellis.git",
     "type": "git"
   },
-  "homepage": "",
+  "homepage": "https://github.com/lxsmnsyc/stellis/tree/main/packages/stellis",
   "bugs": {
-    "url": ""
+    "url": "https://github.com/lxsmnsyc/stellis/issues"
   },
-  "author": "",
+  "author": "Alexis Munsayac",
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
     "@babel/helper-module-imports": "^7.18.6",
-    "@babel/traverse": "^7.20.13",
-    "@babel/types": "^7.20.7",
+    "@babel/traverse": "^7.21.2",
+    "@babel/types": "^7.21.2",
     "csstype": "^3.1.1"
   },
   "types": "./dist/types/src/index.d.ts",
