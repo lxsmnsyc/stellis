@@ -243,12 +243,15 @@ export async function render(element: JSX.Element): Promise<string> {
 }
 
 export function $$html(
-  templates: string[],
+  templates: string[] | string,
   escape: boolean,
   ...nodes: JSX.Element[]
 ): () => JSX.Element {
   // Merge
   return () => {
+    if (typeof templates === 'string') {
+      return raw(templates);
+    }
     const resolved: JSX.Element = [];
     forEach(templates, (template, i) => {
       resolved.push(raw(template));
