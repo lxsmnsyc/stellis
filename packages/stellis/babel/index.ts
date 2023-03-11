@@ -96,7 +96,6 @@ function optimizeChildren(
 }
 
 function generateChildren(
-  block: Scope,
   children: (t.JSXElement | t.JSXFragment)['children'],
 ) {
   const resolvedChildren: t.Expression[] = [];
@@ -111,17 +110,13 @@ function generateChildren(
     if (t.isJSXElement(child)) {
       resolvedChildren.push(child);
     } else if (t.isJSXFragment(child)) {
-      resolvedChildren.push(generateChildren(block, child.children));
+      resolvedChildren.push(generateChildren(child.children));
     } else if (t.isExpression(child)) {
       if (isAwaited(child)) {
-        const id = block.generateUidIdentifier('v');
         resolvedChildren.push(
           t.arrowFunctionExpression(
-            [id],
-            t.sequenceExpression([
-              t.assignmentExpression('=', id, child),
-              id,
-            ]),
+            [],
+            child,
             true,
           ),
         );
@@ -129,14 +124,10 @@ function generateChildren(
         resolvedChildren.push(child);
       }
     } else if (isAwaited(child.expression)) {
-      const id = block.generateUidIdentifier('v');
       resolvedChildren.push(
         t.arrowFunctionExpression(
-          [id],
-          t.sequenceExpression([
-            t.assignmentExpression('=', id, child.expression),
-            id,
-          ]),
+          [],
+          child.expression,
         ),
       );
     } else {
@@ -224,7 +215,7 @@ function convertAttributesToObject(
     properties.push(
       t.objectProperty(
         t.identifier('children'),
-        generateChildren(block, el.children),
+        generateChildren(el.children),
       ),
     );
   }
@@ -597,7 +588,7 @@ function createBuiltinComponent(
         ],
       );
     default:
-      return generateChildren(block, path.node.children);
+      return generateChildren(path.node.children);
   }
 }
 
@@ -695,7 +686,7 @@ function createElement(
           }
           shouldEscape.value = false;
         } else {
-          const children = generateChildren(block, path.node.children);
+          const children = generateChildren(path.node.children);
           if (isGuaranteedLiteral(children)) {
             template[template.length - 1].value += `${$$escape(serializeLiteral(children))}</${tagName}>`;
           } else {
@@ -709,7 +700,7 @@ function createElement(
       program.push({
         id: templateID,
         kind: 'const',
-        init: t.arrayExpression(template),
+        init: template.length === 1 ? template[0] : t.arrayExpression(template),
       });
 
       htmlResult = t.callExpression(
@@ -759,7 +750,7 @@ function createComponent(
 function createFragment(
   path: babel.NodePath<t.JSXFragment>,
 ) {
-  path.replaceWith(generateChildren(path.scope.getBlockParent(), path.node.children));
+  path.replaceWith(generateChildren(path.node.children));
 }
 
 interface State extends babel.PluginPass {
