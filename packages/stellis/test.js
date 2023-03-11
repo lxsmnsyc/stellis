@@ -8,5 +8,4 @@ const value = async x => {
   await sleep(1000);
   return x;
 };
-
-console.log(await render(_$$html(_template, true, async _v => (_v = await value('Hello World'), _v))));
+console.log(await render(_$$html(_template, true, async () => await value('Hello World'))));
