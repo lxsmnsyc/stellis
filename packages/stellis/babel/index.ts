@@ -190,15 +190,24 @@ function convertAttributesToObject(
         expr = attr.value.expression;
       }
       if (expr) {
+        const check = Number(attrName);
+        // Test if key is a valid number or JS identifier
+        // so that we don't have to serialize the key and wrap with brackets
+        const attrID =(
+          check >= 0
+          || (Number.isNaN(check) && /^([$A-Z_][0-9A-Z_$]*)$/i.test(attrName))
+        ) ? t.identifier(attrName)
+          : t.stringLiteral(attrName);
+
         if (isAwaited(expr)) {
           const valueID = block.generateUidIdentifier('v');
           asyncExpression.push(t.variableDeclarator(
             valueID,
             expr,
           ));
-          properties.push(t.objectProperty(t.stringLiteral(attrName), valueID));
+          properties.push(t.objectProperty(attrID, valueID));
         } else {
-          properties.push(t.objectProperty(t.stringLiteral(attrName), expr));
+          properties.push(t.objectProperty(attrID, expr));
         }
       }
     }
