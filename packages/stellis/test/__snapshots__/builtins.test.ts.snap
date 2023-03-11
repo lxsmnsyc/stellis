@@ -1,0 +1,47 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`body > should transform 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+import { $$inject as _$$inject } from \\"stellis\\";
+const _template = [\\"<script src=\\\\\\"./my-script.js\\\\\\">\\", \\"</script>\\"];
+_$$inject(\\"body\\", {
+  type: \\"post\\",
+  children: _$$html(_template, true, [])
+});"
+`;
+
+exports[`comment > should transform 1`] = `
+"import { $$comment as _$$comment } from \\"stellis\\";
+_$$comment({
+  value: \\"This is a comment.\\"
+});"
+`;
+
+exports[`error-boundary > should transform 1`] = `
+"import { $$component as _$$component } from \\"stellis\\";
+import { $$html as _$$html } from \\"stellis\\";
+import { $$errorBoundary as _$$errorBoundary } from \\"stellis\\";
+const _template = [\\"<h1>\\", \\"</h1>\\"],
+  _template2 = [\\"<p>\\", \\"</p>\\"];
+_$$errorBoundary({
+  fallback: error => [_$$html(_template, true, () => [\\"Error: \\", error.name]), _$$html(_template2, true, () => [\\"Message: \\", error.message])],
+  children: _$$component(FailingComponent, {})
+});"
+`;
+
+exports[`fragment > should transform 1`] = `
+"import { $$fragment as _$$fragment } from \\"stellis\\";
+_$$fragment({
+  \\"set:html\\": \\"<script>Hello World</script>\\"
+});"
+`;
+
+exports[`head > should transform 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+import { $$inject as _$$inject } from \\"stellis\\";
+const _template = \\"<title>Hello World</title>\\";
+_$$inject(\\"head\\", {
+  type: \\"pre\\",
+  children: _$$html(_template, true)
+});"
+`;

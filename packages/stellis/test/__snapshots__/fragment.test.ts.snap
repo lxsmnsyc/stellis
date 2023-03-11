@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`fragment > should transform fragment with dynamic child element 1`] = `"() => [dynamicChild(), dynamicChild()];"`;
+
+exports[`fragment > should transform fragment with static child element 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+const _template = \\"<h1>Hello World</h1>\\",
+  _template2 = \\"<h1>Hello World</h1>\\";
+[_$$html(_template, true), _$$html(_template2, true)];"
+`;

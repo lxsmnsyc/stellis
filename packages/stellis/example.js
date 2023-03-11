@@ -17,5 +17,14 @@ async function transform(code) {
 transform(`
 import { render } from 'stellis';
 
-console.log(await render(<stellis:comment value="<script>Hello World</script>" />));
+const sleep = (ms) => new Promise((res) => {
+  setTimeout(res, ms, true);
+});
+
+const value = async (x) => {
+  await sleep(1000);
+  return x;
+};
+
+console.log(await render(<h1>{await value('Hello World')}</h1>));
 `).then(console.log);

@@ -1,0 +1,59 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`component > should transform basic 1`] = `
+"import { $$component as _$$component } from \\"stellis\\";
+_$$component(Heading, {
+  children: \\"Hello World\\"
+});"
+`;
+
+exports[`component > should transform with async dynamic attribute 1`] = `
+"import { $$component as _$$component } from \\"stellis\\";
+async () => {
+  const _v = await getTitle();
+  return _$$component(Heading, {
+    title: _v,
+    children: \\"Hello World\\"
+  });
+};"
+`;
+
+exports[`component > should transform with async dynamic child element 1`] = `
+"import { $$component as _$$component } from \\"stellis\\";
+_$$component(Heading, {
+  children: [async () => await dynamicChild(), async () => await dynamicChild()]
+});"
+`;
+
+exports[`component > should transform with dynamic attribute 1`] = `
+"import { $$component as _$$component } from \\"stellis\\";
+_$$component(Heading, {
+  title: getTitle(),
+  children: \\"Hello World\\"
+});"
+`;
+
+exports[`component > should transform with dynamic child element 1`] = `
+"import { $$component as _$$component } from \\"stellis\\";
+_$$component(Heading, {
+  children: () => [dynamicChild(), dynamicChild()]
+});"
+`;
+
+exports[`component > should transform with static attribute 1`] = `
+"import { $$component as _$$component } from \\"stellis\\";
+_$$component(Heading, {
+  title: \\"hello world\\",
+  children: \\"Hello World\\"
+});"
+`;
+
+exports[`component > should transform with static child element 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+import { $$component as _$$component } from \\"stellis\\";
+const _template = \\"<h1>Hello World</h1>\\",
+  _template2 = \\"<h1>Hello World</h1>\\";
+_$$component(Heading, {
+  children: [_$$html(_template, true), _$$html(_template2, true)]
+});"
+`;

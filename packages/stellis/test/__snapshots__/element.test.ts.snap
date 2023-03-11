@@ -1,0 +1,114 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`elements > should transform basic 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+const _template = \\"<h1>Hello World</h1>\\";
+_$$html(_template, true);"
+`;
+
+exports[`elements > should transform class attribute 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+import { $$class as _$$class } from \\"stellis\\";
+const _template = [\\"<h1 \\", \\">Hello</h1>\\"],
+  _template2 = [\\"<h1 \\", \\">Array</h1>\\"],
+  _template3 = [\\"<h1 \\", \\">Object</h1>\\"],
+  _template4 = [\\"<h1 \\", \\">Nested</h1>\\"];
+_$$html(_template, true, _$$class(\\"example\\"));
+_$$html(_template2, true, _$$class([\\"a\\", condB && b]));
+_$$html(_template3, true, _$$class({
+  a: true,
+  b: condB,
+  c: condC
+}));
+_$$html(_template4, true, _$$class([\\"a\\", {
+  b: condB
+}, [condC && \\"c\\"]]));"
+`;
+
+exports[`elements > should transform class:* attribute 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+import { $$class as _$$class } from \\"stellis\\";
+const _template = [\\"<h1 \\", \\">Hello</h1>\\"],
+  _template2 = [\\"<h1 \\", \\">Another Example</h1>\\"];
+_$$html(_template, true, _$$class(\\"example\\"));
+_$$html(_template2, true, _$$class(\\"a\\", cond && \\"b\\"));"
+`;
+
+exports[`elements > should transform set:html attribute 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+const _template = \\"<div><script>Hello World</script></div>\\";
+_$$html(_template, false);"
+`;
+
+exports[`elements > should transform style attribute 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+import { $$style as _$$style } from \\"stellis\\";
+const _template = [\\"<div \\", \\">Hello World</div>\\"];
+_$$html(_template, true, _$$style({
+  color: 'red'
+}));"
+`;
+
+exports[`elements > should transform style:* attribute 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+import { $$style as _$$style } from \\"stellis\\";
+const _template = [\\"<h1 \\", \\">Red Heading 2</h1>\\"];
+_$$html(_template, true, _$$style({
+  color: \\"red\\"
+}));"
+`;
+
+exports[`elements > should transform with async dynamic attribute 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+import { $$attr as _$$attr } from \\"stellis\\";
+const _template = [\\"<h1 \\", \\">Hello World</h1>\\"];
+async () => {
+  const _v = await getTitle();
+  return _$$html(_template, true, _$$attr(\\"title\\", _v));
+};"
+`;
+
+exports[`elements > should transform with dynamic attribute 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+import { $$attr as _$$attr } from \\"stellis\\";
+const _template = [\\"<h1 \\", \\">Hello World</h1>\\"];
+_$$html(_template, true, _$$attr(\\"title\\", getTitle()));"
+`;
+
+exports[`elements > should transform with dynamic child element 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+const _template = [\\"<div>\\", \\"</div>\\"];
+_$$html(_template, true, () => [dynamicChild(), dynamicChild()]);"
+`;
+
+exports[`elements > should transform with dynamic child element 2`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+const _template = [\\"<div>\\", \\"</div>\\"];
+_$$html(_template, true, [async () => await dynamicChild(), async () => await dynamicChild()]);"
+`;
+
+exports[`elements > should transform with nested static child element 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+const _template = [\\"<div>\\", \\"</div>\\"],
+  _template2 = [\\"<div>\\", \\"</div>\\"],
+  _template3 = \\"<h1>Hello World</h1>\\",
+  _template4 = \\"<h1>Hello World</h1>\\",
+  _template5 = [\\"<div>\\", \\"</div>\\"],
+  _template6 = \\"<h1>Hello World</h1>\\",
+  _template7 = \\"<h1>Hello World</h1>\\";
+_$$html(_template, true, [_$$html(_template2, true, [_$$html(_template3, true), _$$html(_template4, true)]), _$$html(_template5, true, [_$$html(_template6, true), _$$html(_template7, true)])]);"
+`;
+
+exports[`elements > should transform with static attribute 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+const _template = \\"<h1 title=\\\\\\"hello world\\\\\\">Hello World</h1>\\";
+_$$html(_template, true);"
+`;
+
+exports[`elements > should transform with static child element 1`] = `
+"import { $$html as _$$html } from \\"stellis\\";
+const _template = [\\"<div>\\", \\"</div>\\"],
+  _template2 = \\"<h1>Hello World</h1>\\",
+  _template3 = \\"<h1>Hello World</h1>\\";
+_$$html(_template, true, [_$$html(_template2, true), _$$html(_template3, true)]);"
+`;
