@@ -5,110 +5,110 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable no-bitwise */
 import * as t from '@babel/types';
-import { every, forEach, some } from '../shared/arrays';
 import assert from '../shared/assert';
 import { Serializable } from '../shared/attr';
 
 export function unwrapLiteral(node: t.Expression): Serializable {
-  if (
-    t.isParenthesizedExpression(node)
-    || t.isTypeCastExpression(node)
-    || t.isTSAsExpression(node)
-    || t.isTSSatisfiesExpression(node)
-    || t.isTSNonNullExpression(node)
-    || t.isTSTypeAssertion(node)
-    || t.isTSInstantiationExpression(node)
-  ) {
-    return unwrapLiteral(node.expression);
-  }
-  if (
-    t.isStringLiteral(node)
-    || t.isNumericLiteral(node)
-    || t.isBooleanLiteral(node)
-  ) {
-    return node.value;
-  }
-  if (t.isNullLiteral(node)) {
-    return null;
-  }
-  if (t.isBigIntLiteral(node)) {
-    return BigInt(node.value);
-  }
-  if (t.isRegExpLiteral(node)) {
-    return new RegExp(node.pattern, node.flags);
-  }
-  if (t.isDecimalLiteral(node)) {
-    return node.value;
-  }
-  if (t.isTemplateLiteral(node)) {
-    let result = '';
-    forEach(node.quasis, (template, i) => {
-      result += template.value.cooked ?? '';
-      const expr = node.expressions[i];
-      if (t.isLiteral(expr)) {
-        result += String(unwrapLiteral(expr));
+  switch (node.type) {
+    case 'ParenthesizedExpression':
+    case 'TypeCastExpression':
+    case 'TSAsExpression':
+    case 'TSSatisfiesExpression':
+    case 'TSNonNullExpression':
+    case 'TSTypeAssertion':
+    case 'TSInstantiationExpression':
+      return unwrapLiteral(node.expression);
+    case 'StringLiteral':
+    case 'NumericLiteral':
+    case 'BooleanLiteral':
+      return node.value;
+    case 'NullLiteral':
+      return null;
+    case 'Identifier':
+      switch (node.name) {
+        case 'undefined': return undefined;
+        case 'NaN': return NaN;
+        case 'Infinity': return Infinity;
+        default: throw new Error('Illegal identifier');
       }
-    });
-    return result;
-  }
-  if (t.isUnaryExpression(node)) {
-    if (node.operator === 'void') {
-      return undefined;
+    case 'BigIntLiteral':
+      return BigInt(node.value);
+    case 'RegExpLiteral':
+      return new RegExp(node.pattern, node.flags);
+    case 'DecimalLiteral':
+      return node.value;
+    case 'TemplateLiteral': {
+      let result = '';
+      for (let i = 0, len = node.quasis.length; i < len; i++) {
+        result += node.quasis[i].value.cooked || '';
+        const expr = node.expressions[i];
+        if (t.isLiteral(expr)) {
+          result += String(unwrapLiteral(expr));
+        }
+      }
+      return result;
     }
-    const argument = unwrapLiteral(node.argument);
-    switch (node.operator) {
-      case '!': return !argument;
-      case '+': return +(argument as any);
-      case '-': return -(argument as any);
-      case 'typeof': return typeof argument;
-      case '~': return argument;
-      default:
-        throw new Error('Unexpected unary expression during literal unwrap');
+    case 'UnaryExpression': {
+      if (node.operator === 'void') {
+        return undefined;
+      }
+      const argument = unwrapLiteral(node.argument);
+      switch (node.operator) {
+        case '!': return !argument;
+        case '+': return +(argument as any);
+        case '-': return -(argument as any);
+        case 'typeof': return typeof argument;
+        case '~': return argument;
+        default:
+          throw new Error('Unexpected unary expression during literal unwrap');
+      }
     }
-  }
-  if (t.isConditionalExpression(node)) {
-    const test = unwrapLiteral(node.test);
-    const consequent = unwrapLiteral(node.consequent);
-    const alternate = unwrapLiteral(node.alternate);
-    return test ? consequent : alternate;
-  }
-  if (t.isBinaryExpression(node)) {
-    assert(!t.isPrivateName(node.left), new Error('Unexpected private name on BinaryExpression'));
-    const left = unwrapLiteral(node.left) as any;
-    const right = unwrapLiteral(node.right) as any;
-    switch (node.operator) {
-      case '!=': return left != right;
-      case '!==': return left !== right;
-      case '%': return left % right;
-      case '&': return left & right;
-      case '*': return left * right;
-      case '**': return left ** right;
-      case '+': return left + right;
-      case '-': return left - right;
-      case '/': return left / right;
-      case '<': return left < right;
-      case '<<': return left << right;
-      case '<=': return left <= right;
-      case '==': return left == right;
-      case '===': return left === right;
-      case '>': return left > right;
-      case '>=': return left >= right;
-      case '>>': return left >> right;
-      case '>>>': return left >>> right;
-      case '^': return left ^ right;
-      case '|': return left | right;
-      default:
-        throw new Error('Unexpected BinaryExpression during literal unwrap');
+    case 'ConditionalExpression': {
+      return unwrapLiteral(node.test)
+        ? unwrapLiteral(node.consequent)
+        : unwrapLiteral(node.alternate);
     }
-  }
-  assert(t.isLogicalExpression(node), new Error('Attempted to unwrap a non-guaranteed literal'));
-  const left = unwrapLiteral(node.left) as any;
-  const right = unwrapLiteral(node.right) as any;
-  switch (node.operator) {
-    case '&&': return left && right;
-    case '??': return left ?? right;
-    case '||': return left || right;
-    default: return undefined;
+    case 'BinaryExpression': {
+      assert(!t.isPrivateName(node.left), new Error('Unexpected private name on BinaryExpression'));
+      const left = unwrapLiteral(node.left) as any;
+      const right = unwrapLiteral(node.right) as any;
+      switch (node.operator) {
+        case '!=': return left != right;
+        case '!==': return left !== right;
+        case '%': return left % right;
+        case '&': return left & right;
+        case '*': return left * right;
+        case '**': return left ** right;
+        case '+': return left + right;
+        case '-': return left - right;
+        case '/': return left / right;
+        case '<': return left < right;
+        case '<<': return left << right;
+        case '<=': return left <= right;
+        case '==': return left == right;
+        case '===': return left === right;
+        case '>': return left > right;
+        case '>=': return left >= right;
+        case '>>': return left >> right;
+        case '>>>': return left >>> right;
+        case '^': return left ^ right;
+        case '|': return left | right;
+        default:
+          throw new Error('Unexpected BinaryExpression during literal unwrap');
+      }
+    }
+    case 'LogicalExpression': {
+      const left = unwrapLiteral(node.left) as any;
+      const right = unwrapLiteral(node.right) as any;
+      switch (node.operator) {
+        case '&&': return left && right;
+        case '??': return left ?? right;
+        case '||': return left || right;
+        default: return undefined;
+      }
+    }
+    default:
+      throw new Error('Attempted to unwrap a non-guaranteed literal');
   }
 }
 
@@ -131,56 +131,62 @@ export function serializeLiteral(node: t.Expression): string {
 }
 
 export function isGuaranteedLiteral(node: t.Expression): node is t.Literal {
-  if (t.isLiteral(node)) {
-    // Check if it is template literal but with only static expressions
-    if (t.isTemplateLiteral(node)) {
-      return every(node.expressions, (expr) => {
-        if (t.isExpression(expr)) {
-          return isGuaranteedLiteral(expr);
+  switch (node.type) {
+    case 'ParenthesizedExpression':
+    case 'TypeCastExpression':
+    case 'TSAsExpression':
+    case 'TSSatisfiesExpression':
+    case 'TSNonNullExpression':
+    case 'TSTypeAssertion':
+    case 'TSInstantiationExpression':
+      return isGuaranteedLiteral(node.expression);
+    case 'StringLiteral':
+    case 'NumericLiteral':
+    case 'BooleanLiteral':
+    case 'NullLiteral':
+    case 'BigIntLiteral':
+    case 'RegExpLiteral':
+      return true;
+    case 'Identifier':
+      switch (node.name) {
+        case 'undefined': return true;
+        case 'NaN': return true;
+        case 'Infinity': return true;
+        default: return false;
+      }
+    case 'TemplateLiteral':
+      for (let i = 0, len = node.expressions.length; i < len; i++) {
+        const expr = node.expressions[i];
+        if (t.isExpression(expr) && !isGuaranteedLiteral(expr)) {
+          return false;
         }
+      }
+      return true;
+    case 'UnaryExpression':
+      if (node.operator === 'throw' || node.operator === 'delete') {
         return false;
-      });
-    }
-    return true;
-  }
-  if (
-    t.isParenthesizedExpression(node)
-    || t.isTypeCastExpression(node)
-    || t.isTSAsExpression(node)
-    || t.isTSSatisfiesExpression(node)
-    || t.isTSNonNullExpression(node)
-    || t.isTSTypeAssertion(node)
-    || t.isTSInstantiationExpression(node)
-  ) {
-    return isGuaranteedLiteral(node.expression);
-  }
-  if (t.isUnaryExpression(node)) {
-    if (node.operator === 'throw' || node.operator === 'delete') {
+      }
+      return isGuaranteedLiteral(node.argument);
+    case 'ConditionalExpression':
+      return isGuaranteedLiteral(node.test)
+        || isGuaranteedLiteral(node.consequent)
+        || isGuaranteedLiteral(node.alternate);
+    case 'BinaryExpression':
+      if (node.operator === 'in' || node.operator === 'instanceof' || node.operator === '|>') {
+        return false;
+      }
+      if (t.isExpression(node.left)) {
+        return isGuaranteedLiteral(node.left);
+      }
+      if (t.isExpression(node.right)) {
+        return isGuaranteedLiteral(node.right);
+      }
       return false;
-    }
-    return isGuaranteedLiteral(node.argument);
-  }
-  if (t.isConditionalExpression(node)) {
-    return isGuaranteedLiteral(node.test)
-      || isGuaranteedLiteral(node.consequent)
-      || isGuaranteedLiteral(node.alternate);
-  }
-  if (t.isBinaryExpression(node)) {
-    if (node.operator === 'in' || node.operator === 'instanceof' || node.operator === '|>') {
+    case 'LogicalExpression':
+      return isGuaranteedLiteral(node.left) || isGuaranteedLiteral(node.right);
+    default:
       return false;
-    }
-    if (t.isExpression(node.left)) {
-      return isGuaranteedLiteral(node.left);
-    }
-    if (t.isExpression(node.right)) {
-      return isGuaranteedLiteral(node.right);
-    }
-    return false;
   }
-  if (t.isLogicalExpression(node)) {
-    return isGuaranteedLiteral(node.left) || isGuaranteedLiteral(node.right);
-  }
-  return false;
 }
 
 export function isStatic(
@@ -192,250 +198,268 @@ export function isStatic(
     | t.RestElement,
 ): boolean {
   // The following types are singular nested expressions
-  if (
-    t.isParenthesizedExpression(node)
-    || t.isTypeCastExpression(node)
-    || t.isTSAsExpression(node)
-    || t.isTSSatisfiesExpression(node)
-    || t.isTSNonNullExpression(node)
-    || t.isTSTypeAssertion(node)
-    || t.isTSInstantiationExpression(node)
-  ) {
-    return isStatic(node.expression);
-  }
-  // Same as above
-  if (
-    t.isUnaryExpression(node)
-    || t.isUpdateExpression(node)
-    || t.isSpreadElement(node)
-  ) {
-    return isStatic(node.argument);
-  }
-  if (t.isRestElement(node)) {
-    if (t.isTSParameterProperty(node.argument)) {
+  switch (node.type) {
+    case 'ParenthesizedExpression':
+    case 'TypeCastExpression':
+    case 'TSAsExpression':
+    case 'TSSatisfiesExpression':
+    case 'TSNonNullExpression':
+    case 'TSTypeAssertion':
+    case 'TSInstantiationExpression':
+      return isStatic(node.expression);
+    case 'StringLiteral':
+    case 'NumericLiteral':
+    case 'BooleanLiteral':
+    case 'NullLiteral':
+    case 'BigIntLiteral':
+    case 'RegExpLiteral':
+    case 'Identifier':
+    case 'ArrowFunctionExpression':
+    case 'FunctionExpression':
+    case 'JSXElement':
+    case 'JSXFragment':
+      return true;
+    case 'TemplateLiteral':
+      for (let i = 0, len = node.expressions.length; i < len; i++) {
+        const expr = node.expressions[i];
+        if (t.isExpression(expr) && !isStatic(expr)) {
+          return false;
+        }
+      }
+      return true;
+    case 'UnaryExpression':
+    case 'UpdateExpression':
+    case 'SpreadElement':
+      return isStatic(node.argument);
+    case 'RestElement':
+      if (t.isTSParameterProperty(node.argument)) {
+        return false;
+      }
+      return isStatic(node.argument);
+    case 'ArrayExpression':
+    case 'TupleExpression':
+      for (let i = 0, len = node.elements.length; i < len; i++) {
+        const expr = node.elements[i];
+        if (expr && !isStatic(expr)) {
+          return false;
+        }
+      }
+      return true;
+    case 'ArrayPattern':
+      for (let i = 0, len = node.elements.length; i < len; i++) {
+        const expr = node.elements[i];
+        if (t.isTSParameterProperty(expr)) {
+          return false;
+        }
+        if (expr && !isStatic(expr)) {
+          return false;
+        }
+      }
+      return true;
+    case 'ObjectExpression':
+    case 'RecordExpression':
+      for (let i = 0, len = node.properties.length; i < len; i++) {
+        const prop = node.properties[i];
+        if (t.isObjectProperty(prop)) {
+          const result = (() => {
+            if (t.isExpression(prop.value) && isStatic(prop.value)) {
+              return true;
+            }
+            if (prop.computed && t.isExpression(prop.key) && isStatic(prop.key)) {
+              return true;
+            }
+            return false;
+          })();
+          if (!result) {
+            return false;
+          }
+        }
+        if (t.isSpreadElement(prop) && !isStatic(prop)) {
+          return false;
+        }
+      }
+      return true;
+    case 'ObjectPattern':
+      for (let i = 0, len = node.properties.length; i < len; i++) {
+        const prop = node.properties[i];
+        if (t.isObjectProperty(prop)) {
+          const result = (() => {
+            if (!t.isTSTypeParameter(prop.value) && isStatic(prop.value)) {
+              return true;
+            }
+            if (prop.computed && t.isExpression(prop.key) && isStatic(prop.key)) {
+              return true;
+            }
+            return false;
+          })();
+          if (!result) {
+            return false;
+          }
+        }
+        if (t.isSpreadElement(prop) && !isStatic(prop)) {
+          return false;
+        }
+      }
+      return true;
+    case 'AssignmentExpression':
+    case 'AssignmentPattern':
+      if (isStatic(node.right)) {
+        return true;
+      }
+      if (!t.isTSParameterProperty(node.left)) {
+        return false;
+      }
+      return isStatic(node);
+    case 'SequenceExpression':
+      for (let i = 0, len = node.expressions.length; i < len; i++) {
+        if (!isStatic(node.expressions[i])) {
+          return false;
+        }
+      }
+      return true;
+    case 'ConditionalExpression':
+      return isStatic(node.test)
+        || isStatic(node.consequent)
+        || isStatic(node.alternate);
+    case 'BinaryExpression':
+      if (t.isExpression(node.left)) {
+        return isStatic(node.left);
+      }
+      if (t.isExpression(node.right)) {
+        return isStatic(node.right);
+      }
       return false;
-    }
-    return isStatic(node.argument);
-  }
-  if (t.isLiteral(node)) {
-    if (t.isTemplateLiteral(node)) {
-      return every(node.expressions, (expr) => {
-        if (t.isExpression(expr)) {
-          return isStatic(expr);
-        }
-        return false;
-      });
-    }
-    return true;
-  }
-  // The following types are always static
-  if (
-    t.isIdentifier(node)
-    || t.isArrowFunctionExpression(node)
-    || t.isFunctionExpression(node)
-    || t.isJSXElement(node)
-    || t.isJSXFragment(node)
-  ) {
-    return true;
-  }
-  // Arrays and tuples might have static values
-  if (
-    t.isArrayExpression(node)
-    || t.isTupleExpression(node)
-  ) {
-    return every(node.elements, (el) => {
-      if (el) {
-        return isStatic(el);
-      }
-      return true;
-    });
-  }
-  if (t.isArrayPattern(node)) {
-    return every(node.elements, (el) => {
-      if (t.isTSParameterProperty(el)) {
-        return false;
-      }
-      if (el) {
-        return isStatic(el);
-      }
-      return true;
-    });
-  }
-  if (t.isObjectExpression(node) || t.isRecordExpression(node)) {
-    return every(node.properties, (prop) => {
-      if (t.isObjectProperty(prop)) {
-        if (t.isExpression(prop.value) && isStatic(prop.value)) {
-          return true;
-        }
-        if (prop.computed && t.isExpression(prop.key) && isStatic(prop.key)) {
-          return true;
-        }
-        return false;
-      }
-      if (t.isSpreadElement(prop)) {
-        return isStatic(prop);
-      }
-      // Ignore
-      return true;
-    });
-  }
-  if (t.isObjectPattern(node)) {
-    return every(node.properties, (prop) => {
-      if (t.isObjectProperty(prop)) {
-        if (!t.isTSTypeParameter(prop.value) && isStatic(prop.value)) {
-          return true;
-        }
-        if (prop.computed && t.isExpression(prop.key) && isStatic(prop.key)) {
-          return true;
-        }
-        return false;
-      }
-      if (t.isSpreadElement(prop)) {
-        return isStatic(prop);
-      }
-      // Ignore
-      return true;
-    });
-  }
-  if (t.isAssignmentExpression(node) || t.isAssignmentPattern(node)) {
-    if (isStatic(node.right)) {
-      return true;
-    }
-    if (!t.isTSParameterProperty(node.left)) {
+    case 'LogicalExpression':
+      return isStatic(node.left) || isStatic(node.right);
+    default:
       return false;
-    }
-    return isStatic(node);
   }
-  if (t.isSequenceExpression(node)) {
-    return every(node.expressions, isStatic);
-  }
-  if (t.isConditionalExpression(node)) {
-    return isStatic(node.test)
-      || isStatic(node.consequent)
-      || isStatic(node.alternate);
-  }
-  if (t.isBinaryExpression(node)) {
-    if (t.isExpression(node.left)) {
-      return isStatic(node.left);
-    }
-    if (t.isExpression(node.right)) {
-      return isStatic(node.right);
-    }
-    return false;
-  }
-  if (t.isLogicalExpression(node)) {
-    return isStatic(node.left) || isStatic(node.right);
-  }
-  return false;
 }
 
 export function isAwaited(node: t.Expression | t.SpreadElement): boolean {
-  // Default
-  if (t.isAwaitExpression(node)) {
-    return true;
-  }
-  if (t.isTemplateLiteral(node)) {
-    return some(node.expressions, (expr) => t.isExpression(expr) && isAwaited(expr));
-  }
-  if (
-    t.isLiteral(node)
-    || t.isIdentifier(node)
-    || t.isArrowFunctionExpression(node)
-    || t.isFunctionExpression(node)
-    || t.isClassExpression(node)
-    || t.isYieldExpression(node)
-    || t.isJSX(node)
-    || t.isMetaProperty(node)
-    || t.isSuper(node)
-    || t.isThisExpression(node)
-    || t.isImport(node)
-    || t.isDoExpression(node)
-  ) {
-    return false;
-  }
-  if (t.isTaggedTemplateExpression(node)) {
-    return isAwaited(node.tag) || isAwaited(node.quasi);
-  }
-  if (
-    t.isUnaryExpression(node)
-    || t.isUpdateExpression(node)
-    || t.isSpreadElement(node)
-  ) {
-    return isAwaited(node.argument);
-  }
-  if (
-    t.isParenthesizedExpression(node)
-    || t.isTypeCastExpression(node)
-    || t.isTSAsExpression(node)
-    || t.isTSSatisfiesExpression(node)
-    || t.isTSNonNullExpression(node)
-    || t.isTSTypeAssertion(node)
-    || t.isTSInstantiationExpression(node)
-  ) {
-    return isAwaited(node.expression);
-  }
-  // Check for elements
-  if (t.isArrayExpression(node) || t.isTupleExpression(node)) {
-    return some(node.elements, (el) => el != null && isAwaited(el));
-  }
-  // Skip arrow function
-  if (t.isAssignmentExpression(node)) {
-    if (isAwaited(node.right)) {
+  switch (node.type) {
+    case 'AwaitExpression':
       return true;
-    }
-    if (t.isExpression(node.left)) {
-      return isAwaited(node.left);
-    }
-    return false;
-  }
-  if (t.isBinaryExpression(node)) {
-    if (t.isExpression(node.left) && isAwaited(node.left)) {
-      return true;
-    }
-    return isAwaited(node.right);
-  }
-  if (t.isCallExpression(node) || t.isOptionalCallExpression(node) || t.isNewExpression(node)) {
-    if (t.isExpression(node.callee) && isAwaited(node.callee)) {
-      return true;
-    }
-    return some(node.arguments, (arg) => (
-      arg && (t.isSpreadElement(arg) || t.isExpression(arg)) && isAwaited(arg)
-    ));
-  }
-  if (t.isConditionalExpression(node)) {
-    return isAwaited(node.test)
-      || isAwaited(node.consequent)
-      || isAwaited(node.alternate);
-  }
-  if (t.isLogicalExpression(node)) {
-    return isAwaited(node.left) || isAwaited(node.right);
-  }
-  if (t.isMemberExpression(node) || t.isOptionalMemberExpression(node)) {
-    return isAwaited(node.object)
-      || (node.computed && t.isExpression(node.property) && isAwaited(node.property));
-  }
-  if (t.isSequenceExpression(node)) {
-    return some(node.expressions, isAwaited);
-  }
-  if (t.isObjectExpression(node) || t.isRecordExpression(node)) {
-    return some(node.properties, (prop) => {
-      if (t.isObjectProperty(prop)) {
-        if (t.isExpression(prop.value) && isAwaited(prop.value)) {
+    case 'ParenthesizedExpression':
+    case 'TypeCastExpression':
+    case 'TSAsExpression':
+    case 'TSSatisfiesExpression':
+    case 'TSNonNullExpression':
+    case 'TSTypeAssertion':
+    case 'TSInstantiationExpression':
+      return isAwaited(node.expression);
+    case 'StringLiteral':
+    case 'NumericLiteral':
+    case 'BooleanLiteral':
+    case 'NullLiteral':
+    case 'BigIntLiteral':
+    case 'RegExpLiteral':
+    case 'Identifier':
+    case 'ArrowFunctionExpression':
+    case 'FunctionExpression':
+    case 'JSXElement':
+    case 'JSXFragment':
+    case 'ClassExpression':
+    case 'YieldExpression':
+    case 'MetaProperty':
+    case 'Super':
+    case 'ThisExpression':
+    case 'Import':
+    case 'DoExpression':
+      return false;
+    case 'TemplateLiteral':
+      for (let i = 0, len = node.expressions.length; i < len; i++) {
+        const expr = node.expressions[i];
+        if (t.isExpression(expr) && isAwaited(expr)) {
           return true;
         }
-        if (prop.computed && t.isExpression(prop.key) && isAwaited(prop.key)) {
-          return true;
-        }
-        return false;
-      }
-      if (t.isSpreadElement(prop)) {
-        return isAwaited(prop);
       }
       return false;
-    });
+    case 'TaggedTemplateExpression':
+      return isAwaited(node.tag) || isAwaited(node.quasi);
+    case 'UnaryExpression':
+    case 'UpdateExpression':
+    case 'SpreadElement':
+      return isAwaited(node.argument);
+    case 'ArrayExpression':
+    case 'TupleExpression':
+      for (let i = 0, len = node.elements.length; i < len; i++) {
+        const expr = node.elements[i];
+        if (expr && isAwaited(expr)) {
+          return true;
+        }
+      }
+      return false;
+    case 'AssignmentExpression':
+      if (isAwaited(node.right)) {
+        return true;
+      }
+      if (t.isExpression(node.left)) {
+        return isAwaited(node.left);
+      }
+      return false;
+    case 'BinaryExpression':
+      if (t.isExpression(node.left) && isAwaited(node.left)) {
+        return true;
+      }
+      return isAwaited(node.right);
+    case 'CallExpression':
+    case 'OptionalCallExpression':
+    case 'NewExpression':
+      if (t.isExpression(node.callee) && isAwaited(node.callee)) {
+        return true;
+      }
+      for (let i = 0, len = node.arguments.length; i < len; i++) {
+        const arg = node.arguments[i];
+        if ((t.isSpreadElement(arg) || t.isExpression(arg)) && isAwaited(arg)) {
+          return true;
+        }
+      }
+      return false;
+    case 'ConditionalExpression':
+      return isAwaited(node.test)
+        || isAwaited(node.consequent)
+        || isAwaited(node.alternate);
+    case 'LogicalExpression':
+      return isAwaited(node.left) || isAwaited(node.right);
+    case 'MemberExpression':
+    case 'OptionalMemberExpression':
+      return isAwaited(node.object)
+        || (node.computed && t.isExpression(node.property) && isAwaited(node.property));
+    case 'SequenceExpression':
+      for (let i = 0, len = node.expressions.length; i < len; i++) {
+        if (isAwaited(node.expressions[i])) {
+          return true;
+        }
+      }
+      return false;
+    case 'ObjectExpression':
+    case 'RecordExpression':
+      for (let i = 0, len = node.properties.length; i < len; i++) {
+        const prop = node.properties[i];
+        const result = (() => {
+          if (t.isObjectProperty(prop)) {
+            if (t.isExpression(prop.value) && isAwaited(prop.value)) {
+              return true;
+            }
+            if (prop.computed && t.isExpression(prop.key) && isAwaited(prop.key)) {
+              return true;
+            }
+            return false;
+          }
+          if (t.isSpreadElement(prop)) {
+            return isAwaited(prop);
+          }
+          return false;
+        })();
+        if (result) {
+          return true;
+        }
+      }
+      return false;
+    case 'BindExpression':
+      return isAwaited(node.object) || isAwaited(node.callee);
+    default:
+      return false;
   }
-  if (t.isBindExpression(node)) {
-    return isAwaited(node.object) || isAwaited(node.callee);
-  }
-  return false;
 }

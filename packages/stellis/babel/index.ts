@@ -2,7 +2,6 @@ import * as babel from '@babel/core';
 import * as t from '@babel/types';
 import { addNamed } from '@babel/helper-module-imports';
 import { Scope } from '@babel/traverse';
-import { forEach, some } from '../shared/arrays';
 import { VOID_ELEMENTS } from '../shared/constants';
 import $$attr from '../shared/attr';
 import {
@@ -54,7 +53,12 @@ function getImportIdentifier(
 
 function hasPropSpreading(node: t.JSXElement) {
   const { attributes } = node.openingElement;
-  return some(attributes, (attr) => t.isJSXSpreadAttribute(attr));
+  for (let i = 0, len = attributes.length; i < len; i++) {
+    if (t.isJSXSpreadAttribute(attributes[i])) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function getTagName(name: t.JSXIdentifier | t.JSXNamespacedName): string {
@@ -71,7 +75,9 @@ function optimizeChildren(
 
   let sequence: string | undefined;
 
-  forEach(children, (child) => {
+  let child: t.Expression;
+  for (let i = 0, len = children.length; i < len; i++) {
+    child = children[i];
     if (isGuaranteedLiteral(child)) {
       const result = serializeLiteral(child);
       if (sequence) {
@@ -86,7 +92,7 @@ function optimizeChildren(
       }
       resolved.push(child);
     }
-  });
+  }
 
   if (sequence) {
     resolved.push(t.stringLiteral(sequence));
@@ -106,7 +112,10 @@ function generateChildren(
     children,
   );
 
-  forEach(t.react.buildChildren(wrapper), (child) => {
+  const wrappedChildren = t.react.buildChildren(wrapper);
+
+  for (let i = 0, len = wrappedChildren.length; i < len; i++) {
+    const child = wrappedChildren[i];
     if (t.isJSXElement(child)) {
       resolvedChildren.push(child);
     } else if (t.isJSXFragment(child)) {
@@ -133,7 +142,7 @@ function generateChildren(
     } else {
       resolvedChildren.push(child.expression);
     }
-  });
+  }
 
   const optimized = optimizeChildren(resolvedChildren);
 
@@ -165,7 +174,8 @@ function convertAttributesToObject(
 ) {
   const properties: (t.ObjectProperty | t.SpreadElement | t.ObjectMethod)[] = [];
 
-  forEach(el.openingElement.attributes, (attr) => {
+  for (let i = 0, len = el.openingElement.attributes.length; i < len; i++) {
+    const attr = el.openingElement.attributes[i];
     if (t.isJSXSpreadAttribute(attr)) {
       if (isAwaited(attr.argument)) {
         const valueID = block.generateUidIdentifier('v');
@@ -209,7 +219,7 @@ function convertAttributesToObject(
         }
       }
     }
-  });
+  }
 
   if (el.children.length) {
     properties.push(
@@ -241,7 +251,8 @@ function collectAttributes(attributes: (t.JSXAttribute | t.JSXSpreadAttribute)[]
     style: [],
   };
 
-  forEach(attributes, (attr) => {
+  for (let i = 0, len = attributes.length; i < len; i++) {
+    const attr = attributes[i];
     if (t.isJSXAttribute(attr)) {
       if (t.isJSXNamespacedName(attr.name)) {
         switch (attr.name.namespace.name) {
@@ -296,14 +307,15 @@ function collectAttributes(attributes: (t.JSXAttribute | t.JSXSpreadAttribute)[]
         collected.static.push(attr);
       }
     }
-  });
+  }
 
   return collected;
 }
 
 function serializeStaticAttributes(attributes: t.JSXAttribute[]) {
   let attrTemplate = '';
-  forEach(attributes, (attr) => {
+  for (let i = 0, len = attributes.length; i < len; i++) {
+    const attr = attributes[i];
     if (attr.value) {
       if (t.isStringLiteral(attr.value)) {
         attrTemplate += $$attr(getTagName(attr.name), unwrapLiteral(attr.value)).t;
@@ -319,7 +331,7 @@ function serializeStaticAttributes(attributes: t.JSXAttribute[]) {
     } else {
       attrTemplate += $$attr(getTagName(attr.name), true).t;
     }
-  });
+  }
   return attrTemplate;
 }
 
@@ -330,7 +342,8 @@ function serializeClassList(
 ) {
   const classList: t.Expression[] = [];
   // Solve class
-  forEach(attributes, (attr) => {
+  for (let i = 0, len = attributes.length; i < len; i++) {
+    const attr = attributes[i];
     if (t.isJSXNamespacedName(attr.name)) {
       const attrName = attr.name.name.name;
       const className = t.stringLiteral(attrName);
@@ -382,7 +395,7 @@ function serializeClassList(
         }
       }
     }
-  });
+  }
   return classList;
 }
 
@@ -393,7 +406,8 @@ function serializeStyles(
 ) {
   const styles: t.Expression[] = [];
   // Solve styles
-  forEach(attributes, (attr) => {
+  for (let i = 0, len = attributes.length; i < len; i++) {
+    const attr = attributes[i];
     if (t.isJSXNamespacedName(attr.name)) {
       const attrName = attr.name.name.name;
       const styleName = isIdentifierString(attrName)
@@ -446,7 +460,7 @@ function serializeStyles(
         }
       }
     }
-  });
+  }
   return styles;
 }
 
@@ -462,7 +476,8 @@ function serializeHTMLArguments(
   if (attributes.length) {
     const attrFn = getImportIdentifier(ctx, path, IMPORTS.attr);
     // Solve class
-    forEach(attributes, (attr) => {
+    for (let i = 0, len = attributes.length; i < len; i++) {
+      const attr = attributes[i];
       const attrName = t.stringLiteral(getTagName(attr.name));
       if (attr.value) {
         if (t.isStringLiteral(attr.value)) {
@@ -500,7 +515,7 @@ function serializeHTMLArguments(
           }
         }
       }
-    });
+    }
   }
 
   return htmlArgs;
@@ -659,11 +674,11 @@ function createElement(
 
       const template = [t.stringLiteral(prefix)];
 
-      forEach(htmlArgs, (_, i) => {
+      for (let i = 0, len = htmlArgs.length; i < len; i++) {
         if (i < htmlArgs.length - 1) {
           template.push(t.stringLiteral(''));
         }
-      });
+      }
 
       if (shouldSkipChildren) {
         if (htmlArgs.length) {

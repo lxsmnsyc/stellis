@@ -2,7 +2,6 @@ import type { JSX } from './jsx';
 import $$attr from '../shared/attr';
 import $$escape from '../shared/escape-string';
 import raw, { EMPTY } from '../shared/raw';
-import { forEach, join } from '../shared/arrays';
 import { CHILDREN_KEY, SET_HTML_KEY, VOID_ELEMENTS } from '../shared/constants';
 import assert from '../shared/assert';
 
@@ -80,9 +79,9 @@ type Resolved =
 function reconcileResolvedArray(resolved: Resolved[]): Resolved {
   return Promise.all(resolved).then((items) => {
     let result = '';
-    forEach(items, (item) => {
-      result += item.t;
-    });
+    for (let i = 0, len = items.length; i < len; i++) {
+      result += items[i].t;
+    }
     return raw(result);
   });
 }
@@ -118,9 +117,9 @@ export function $$node(element: JSX.Element, escape = true): Resolved {
     }
     const els: Resolved[] = [];
     // Try to node each item
-    forEach(element, (value) => {
-      els.push($$node(value, escape));
-    });
+    for (let i = 0, len = element.length; i < len; i++) {
+      els.push($$node(element[i], escape));
+    }
     // For precaution, await all values
     return reconcileResolvedArray(els);
   }
@@ -253,12 +252,12 @@ export function $$html(
       return raw(templates);
     }
     const resolved: JSX.Element = [];
-    forEach(templates, (template, i) => {
-      resolved.push(raw(template));
+    for (let i = 0, len = templates.length; i < len; i++) {
+      resolved.push(raw(templates[i]));
       if (nodes[i]) {
         resolved.push(nodes[i]);
       }
-    });
+    }
     return $$node(resolved, escape);
   };
 }
@@ -266,7 +265,9 @@ export function $$html(
 function classInternal(...classes: JSX.ClassList[]): string {
   const result: string[] = [];
 
-  forEach(classes, (classname) => {
+  let classname: JSX.ClassList;
+  for (let i = 0, len = classes.length; i < len; i++) {
+    classname = classes[i];
     if (classname) {
       if (typeof classname === 'string') {
         result.push($$escape(classname));
@@ -275,16 +276,16 @@ function classInternal(...classes: JSX.ClassList[]): string {
       } else if (Array.isArray(classname)) {
         result.push(classInternal(...classname));
       } else {
-        forEach(Object.keys(classname), (key) => {
+        for (const key of Object.keys(classname)) {
           if (classname[key]) {
             result.push($$escape(key));
           }
-        });
+        }
       }
     }
-  });
+  }
 
-  return join(result, ' ');
+  return result.join(' ');
 }
 
 export function $$class(...classes: JSX.ClassList[]): JSX.SafeElement {
@@ -293,22 +294,23 @@ export function $$class(...classes: JSX.ClassList[]): JSX.SafeElement {
 
 function styleInternal(...values: (JSX.CSSProperties | string)[]): string {
   let result = '';
-  forEach(values, (value) => {
+  let value: JSX.CSSProperties | string;
+  for (let i = 0, len = values.length; i < len; i++) {
+    value = values[i];
     if (typeof value === 'string') {
       result += $$escape(value);
       if (!value.endsWith(';')) {
         result += ';';
       }
     } else {
-      const keys = Object.keys(value);
-      forEach(keys, (k) => {
-        const v = value[k as keyof JSX.CSSProperties];
+      for (const key of Object.keys(value)) {
+        const v = value[key as keyof JSX.CSSProperties];
         if (v != null) {
-          result += `${k}:${$$escape(`${v}`)};`;
+          result += `${key}:${$$escape(`${v}`)};`;
         }
-      });
+      }
     }
-  });
+  }
   return result;
 }
 
@@ -369,14 +371,12 @@ export function $$el(
       escape = !(SET_HTML_KEY in props);
     }
 
-    const keys = Object.keys(props);
-
     let mainStyle: string | Record<string, string> = {};
     const subStyle: Record<string, string> = {};
     const classes: JSX.ClassList[] = [];
     let attrs = '';
 
-    forEach(keys, (k) => {
+    for (const k of Object.keys(props)) {
       if (k === CHILDREN_KEY || k === SET_HTML_KEY) {
         // no-op
       } else if (k === 'style') {
@@ -404,7 +404,7 @@ export function $$el(
       } else {
         attrs += $$attr(k, props[k] as string).t;
       }
-    });
+    }
 
     const mergedClasses = classInternal(...classes);
     if (mergedClasses !== '') {
