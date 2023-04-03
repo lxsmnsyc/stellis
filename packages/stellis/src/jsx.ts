@@ -12,7 +12,7 @@ import * as csstype from 'csstype';
  * https://github.com/ryansolid/dom-expressions/blob/main/packages/dom-expressions/src/jsx.d.ts
  */
 
-export namespace JSX {
+export declare namespace JSX {
   type Booleanish = boolean | 'true' | 'false';
   type OverloadedBoolean = boolean | string;
   type Element =
