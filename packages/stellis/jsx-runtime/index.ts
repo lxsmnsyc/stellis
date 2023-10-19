@@ -1,6 +1,6 @@
 export {
   jsx,
-  jsxDev,
+  jsxDEV,
   jsxs,
   Fragment,
 } from 'stellis';

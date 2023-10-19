@@ -16,6 +16,8 @@
     "moduleResolution": "node",
     "jsx": "preserve",
     "esModuleInterop": true,
-    "target": "ES2017"
+    "target": "ES2017",
+    "useDefineForClassFields": false,
+    "declarationMap": true
   }
 }

@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-empty-interface */
+/* eslint-disable @typescript-eslint/ban-types */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-namespace */
-/* eslint-disable import/prefer-default-export */
-import * as csstype from 'csstype';
+import type * as csstype from 'csstype';
 
 /**
  * Based on JSX types
@@ -28,12 +28,8 @@ export declare namespace JSX {
   interface SafeElement {
     t: string;
   }
-  interface ArrayElement extends Array<Element> {
-    // empty
-  }
-  interface PromiseElement extends Promise<Element> {
-    // empty
-  }
+  type ArrayElement = Array<Element>
+  type PromiseElement = Promise<Element>;
   interface FunctionElement {
     (): Element;
   }
@@ -46,24 +42,24 @@ export declare namespace JSX {
   };
   interface StellisHeadAttributes extends StellisAttributes {
     type: 'pre' | 'post';
-    children: JSX.Element;
+    children: Element;
   }
   interface StellisBodyAttributes extends StellisAttributes {
     type: 'pre' | 'post';
-    children: JSX.Element;
+    children: Element;
   }
 
   interface StellisErrorBoundaryAttributes {
-    fallback: (error: unknown) => JSX.Element;
-    children: JSX.Element;
+    fallback: (error: unknown) => Element;
+    children: Element;
   }
 
   interface StellisFragmentAttributes extends StellisAttributes {
-    children: JSX.Element;
+    children: Element;
   }
 
   interface StellisCommentAttributes {
-    value: string
+    value: string;
   }
 
   interface StellisNamespace {
@@ -99,7 +95,7 @@ export declare namespace JSX {
   }
   interface CSSProperties extends csstype.PropertiesHyphen {
     // Override
-    [key: `-${string}`]: string | number | undefined
+    [key: `-${string}`]: string | number | undefined;
   }
 
   type HTMLAutocapitalize = 'off' | 'none' | 'on' | 'sentences' | 'words' | 'characters';
@@ -609,7 +605,7 @@ export declare namespace JSX {
     height?: number | string;
     name?: string;
     referrerpolicy?: HTMLReferrerPolicy;
-    sandbox?: HTMLIframeSandbox | string;
+    sandbox?: HTMLIframeSandbox | (string & {});
     src?: string;
     srcdoc?: string;
     width?: number | string;
@@ -1004,11 +1000,11 @@ export declare namespace JSX {
       | 'inherit';
     'enable-background'?: string;
     fill?: string;
-    'fill-opacity'?: number | string | 'inherit';
+    'fill-opacity'?: number | 'inherit' | (string & {});
     'fill-rule'?: 'nonzero' | 'evenodd' | 'inherit';
     filter?: string;
     'flood-color'?: string;
-    'flood-opacity'?: number | string | 'inherit';
+    'flood-opacity'?: number | 'inherit' | (string & {});
     'font-family'?: string;
     'font-size'?: string;
     'font-size-adjust'?: number | string;
@@ -1026,7 +1022,7 @@ export declare namespace JSX {
     'marker-mid'?: string;
     'marker-start'?: string;
     mask?: string;
-    opacity?: number | string | 'inherit';
+    opacity?: number | 'inherit' | (string & {});
     overflow?: 'visible' | 'hidden' | 'scroll' | 'auto' | 'inherit';
     'pointer-events'?:
       | 'bounding-box'
@@ -1043,14 +1039,14 @@ export declare namespace JSX {
       | 'inherit';
     'shape-rendering'?: 'auto' | 'optimizeSpeed' | 'crispEdges' | 'geometricPrecision' | 'inherit';
     'stop-color'?: string;
-    'stop-opacity'?: number | string | 'inherit';
+    'stop-opacity'?: number | 'inherit' | (string & {});
     stroke?: string;
     'stroke-dasharray'?: string;
     'stroke-dashoffset'?: number | string;
     'stroke-linecap'?: 'butt' | 'round' | 'square' | 'inherit';
     'stroke-linejoin'?: 'arcs' | 'bevel' | 'miter' | 'miter-clip' | 'round' | 'inherit';
-    'stroke-miterlimit'?: number | string | 'inherit';
-    'stroke-opacity'?: number | string | 'inherit';
+    'stroke-miterlimit'?: number | 'inherit' | (string & {});
+    'stroke-opacity'?: number | 'inherit' | (string & {});
     'stroke-width'?: number | string;
     'text-anchor'?: 'start' | 'middle' | 'end' | 'inherit';
     'text-decoration'?: 'none' | 'underline' | 'overline' | 'line-through' | 'blink' | 'inherit';
@@ -1201,7 +1197,7 @@ export declare namespace JSX {
       AnimationAdditionSVGAttributes {
     path?: string;
     keyPoints?: string;
-    rotate?: number | string | 'auto' | 'auto-reverse';
+    rotate?: number | 'auto' | 'auto-reverse' | (string & {});
     origin?: 'default';
   }
   interface AnimateTransformSVGAttributes<T>

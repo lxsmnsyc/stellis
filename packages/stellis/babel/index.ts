@@ -1,7 +1,7 @@
-import * as babel from '@babel/core';
+import type * as babel from '@babel/core';
 import * as t from '@babel/types';
 import { addNamed } from '@babel/helper-module-imports';
-import { Scope } from '@babel/traverse';
+import type { Scope } from '@babel/traverse';
 import { VOID_ELEMENTS } from '../shared/constants';
 import $$attr from '../shared/attr';
 import {
@@ -51,7 +51,7 @@ function getImportIdentifier(
   return newID;
 }
 
-function hasPropSpreading(node: t.JSXElement) {
+function hasPropSpreading(node: t.JSXElement): boolean {
   const { attributes } = node.openingElement;
   for (let i = 0, len = attributes.length; i < len; i++) {
     if (t.isJSXSpreadAttribute(attributes[i])) {
@@ -103,7 +103,7 @@ function optimizeChildren(
 
 function generateChildren(
   children: (t.JSXElement | t.JSXFragment)['children'],
-) {
+): t.Expression {
   const resolvedChildren: t.Expression[] = [];
 
   const wrapper = t.jsxFragment(
@@ -171,7 +171,7 @@ function convertAttributesToObject(
   block: Scope,
   asyncExpression: t.VariableDeclarator[],
   el: t.JSXElement,
-) {
+): (t.ObjectMethod | t.ObjectProperty | t.SpreadElement)[] {
   const properties: (t.ObjectProperty | t.SpreadElement | t.ObjectMethod)[] = [];
 
   for (let i = 0, len = el.openingElement.attributes.length; i < len; i++) {
@@ -241,7 +241,9 @@ interface CollectedAttributes {
   content?: t.Expression;
 }
 
-function collectAttributes(attributes: (t.JSXAttribute | t.JSXSpreadAttribute)[]) {
+function collectAttributes(
+  attributes: (t.JSXAttribute | t.JSXSpreadAttribute)[],
+): CollectedAttributes {
   const collected: CollectedAttributes = {
     // Separate static and dynamic attributes
     static: [],
@@ -312,7 +314,7 @@ function collectAttributes(attributes: (t.JSXAttribute | t.JSXSpreadAttribute)[]
   return collected;
 }
 
-function serializeStaticAttributes(attributes: t.JSXAttribute[]) {
+function serializeStaticAttributes(attributes: t.JSXAttribute[]): string {
   let attrTemplate = '';
   for (let i = 0, len = attributes.length; i < len; i++) {
     const attr = attributes[i];
@@ -339,7 +341,7 @@ function serializeClassList(
   block: Scope,
   asyncExpression: t.VariableDeclarator[],
   attributes: t.JSXAttribute[],
-) {
+): t.Expression[] {
   const classList: t.Expression[] = [];
   // Solve class
   for (let i = 0, len = attributes.length; i < len; i++) {
@@ -403,7 +405,7 @@ function serializeStyles(
   block: Scope,
   asyncExpression: t.VariableDeclarator[],
   attributes: t.JSXAttribute[],
-) {
+): t.Expression[] {
   const styles: t.Expression[] = [];
   // Solve styles
   for (let i = 0, len = attributes.length; i < len; i++) {
@@ -470,7 +472,7 @@ function serializeHTMLArguments(
   block: Scope,
   asyncExpression: t.VariableDeclarator[],
   attributes: t.JSXAttribute[],
-) {
+): t.Expression[] {
   const htmlArgs: t.Expression[] = [];
 
   if (attributes.length) {
@@ -525,7 +527,7 @@ function finalizeNode(
   path: babel.NodePath<t.JSXElement>,
   asyncExpression: t.VariableDeclarator[],
   result: t.Expression,
-) {
+): void {
   if (asyncExpression.length) {
     path.replaceWith(t.arrowFunctionExpression(
       [],
@@ -546,7 +548,7 @@ function createBuiltinComponent(
   name: t.JSXNamespacedName,
   block: Scope,
   asyncExpression: t.VariableDeclarator[],
-) {
+): t.Expression {
   switch (name.name.name) {
     case 'head':
     case 'body':
@@ -611,7 +613,7 @@ function createElement(
   ctx: StateContext,
   path: babel.NodePath<t.JSXElement>,
   name: t.JSXIdentifier | t.JSXNamespacedName,
-) {
+): void {
   const program = path.scope.getProgramParent();
   const block = path.scope.getBlockParent();
 
@@ -740,7 +742,7 @@ function createComponent(
   ctx: StateContext,
   path: babel.NodePath<t.JSXElement>,
   name: t.JSXIdentifier | t.JSXMemberExpression,
-) {
+): void {
   const identifier = getComponentIdentifier(name);
 
   const block = path.scope.getBlockParent();
@@ -764,7 +766,7 @@ function createComponent(
 
 function createFragment(
   path: babel.NodePath<t.JSXFragment>,
-) {
+): void {
   path.replaceWith(generateChildren(path.node.children));
 }
 
@@ -775,13 +777,13 @@ interface State extends babel.PluginPass {
 export default function solidStyledPlugin(): babel.PluginObj<State> {
   return {
     name: 'stellis',
-    pre() {
+    pre(): void {
       this.ctx = {
         hooks: new Map(),
       };
     },
     visitor: {
-      JSXElement(path, { ctx }) {
+      JSXElement(path, { ctx }): void {
         const { node } = path;
         if (t.isJSXIdentifier(node.openingElement.name)) {
           // Check if identifier matches an html element
@@ -796,7 +798,7 @@ export default function solidStyledPlugin(): babel.PluginObj<State> {
           createElement(ctx, path, node.openingElement.name);
         }
       },
-      JSXFragment(path) {
+      JSXFragment(path): void {
         createFragment(path);
       },
     },

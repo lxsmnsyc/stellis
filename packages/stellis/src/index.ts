@@ -5,9 +5,8 @@ import raw, { EMPTY } from '../shared/raw';
 import { CHILDREN_KEY, SET_HTML_KEY, VOID_ELEMENTS } from '../shared/constants';
 import assert from '../shared/assert';
 
-export {
-  JSX, $$attr, $$escape,
-};
+export type { JSX };
+export { $$attr, $$escape };
 
 interface Injector {
   pre: JSX.Element[];
@@ -124,7 +123,7 @@ export function $$node(element: JSX.Element, escape = true): Resolved {
     return reconcileResolvedArray(els);
   }
   const captured = OWNER;
-  return element.then((value) => {
+  return element.then((value): Resolved => {
     const current = OWNER;
     OWNER = captured;
     const result = $$node(value, escape);
@@ -134,7 +133,7 @@ export function $$node(element: JSX.Element, escape = true): Resolved {
 }
 
 export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
-  return () => {
+  return (): JSX.Element => {
     const newOwner: Owner = {
       parent: OWNER,
       prefix: OWNER ? createID() : '',
@@ -150,7 +149,7 @@ export function $$component<P>(Comp: Component<P>, props: P): JSX.Element {
   };
 }
 
-async function resolve(owner: Owner, el: JSX.Element) {
+async function resolve(owner: Owner, el: JSX.Element): Promise<string> {
   const prev = OWNER;
   OWNER = owner;
   const resultPromise = $$node(el);
@@ -158,7 +157,7 @@ async function resolve(owner: Owner, el: JSX.Element) {
   return (await resultPromise).t;
 }
 
-async function resolveInject(owner: Owner, root: Root, result: string) {
+async function resolveInject(owner: Owner, root: Root, result: string): Promise<string> {
   const [preHead, postHead, preBody, postBody] = await Promise.all([
     resolve(owner, root.head.pre),
     resolve(owner, root.head.post),
@@ -247,7 +246,7 @@ export function $$html(
   ...nodes: JSX.Element[]
 ): () => JSX.Element {
   // Merge
-  return () => {
+  return (): JSX.Element => {
     if (typeof templates === 'string') {
       return raw(templates);
     }
@@ -321,20 +320,14 @@ export function $$style(...values: (JSX.CSSProperties | string)[]): JSX.SafeElem
 export function $$errorBoundary(
   { fallback, children }: JSX.StellisErrorBoundaryAttributes,
 ): JSX.Element {
-  return async () => {
-    try {
-      return Promise.resolve($$node(children)).catch(fallback);
-    } catch (error) {
-      return fallback(error);
-    }
-  };
+  return (): JSX.Element => Promise.resolve($$node(children)).catch(fallback);
 }
 
-export function $$comment({ value }: JSX.StellisCommentAttributes) {
+export function $$comment({ value }: JSX.StellisCommentAttributes): JSX.Element {
   return raw(`<!--${$$escape(value, true)}-->`);
 }
 
-export function $$fragment(props: JSX.StellisFragmentAttributes) {
+export function $$fragment(props: JSX.StellisFragmentAttributes): JSX.Element {
   if (props[SET_HTML_KEY]) {
     return raw(props[SET_HTML_KEY]);
   }
@@ -344,8 +337,8 @@ export function $$fragment(props: JSX.StellisFragmentAttributes) {
 export function $$inject(
   target: 'body' | 'head',
   props: JSX.StellisBodyAttributes | JSX.StellisHeadAttributes,
-) {
-  return () => {
+): JSX.Element {
+  return (): JSX.Element => {
     const type = props.type || 'post';
     if (OWNER && OWNER.root?.resolved === false) {
       const content = $$fragment(props);
@@ -359,7 +352,7 @@ export function $$el(
   constructor: string,
   props: Record<string, any>,
 ): () => JSX.Element {
-  return () => {
+  return (): JSX.Element => {
     let result = `<${constructor}`;
     let content: JSX.Element;
     let escape = true;
@@ -446,8 +439,8 @@ export function h<T extends Constructor>(
   el: T,
   props: ExtractProps<T> | undefined | null,
   ...children: ExtractChildren<T>
-) {
-  return () => {
+): JSX.Element {
+  return (): JSX.Element => {
     if (typeof el === 'function') {
       return $$component(el, {
         ...props,
@@ -464,8 +457,8 @@ export function h<T extends Constructor>(
 export function jsx<T extends Constructor>(
   el: T,
   props: ExtractProps<T>,
-) {
-  return () => {
+): JSX.Element {
+  return (): JSX.Element => {
     if (typeof el === 'function') {
       return $$component(el, props);
     }
@@ -510,25 +503,25 @@ export function Dynamic<T extends Constructor>(
 
 export type FragmentProps = JSX.StellisFragmentAttributes;
 
-export function Fragment(props: FragmentProps) {
+export function Fragment(props: FragmentProps): JSX.Element {
   return $$fragment(props);
 }
 
 export type CommentProps = JSX.StellisCommentAttributes;
 
-export function Comment(props: CommentProps) {
+export function Comment(props: CommentProps): JSX.Element {
   return $$comment(props);
 }
 
 export type HeadProps = JSX.StellisHeadAttributes;
 
-export function Head(props: HeadProps) {
+export function Head(props: HeadProps): JSX.Element {
   return $$inject('head', props);
 }
 
 export type BodyProps = JSX.StellisBodyAttributes;
 
-export function Body(props: HeadProps) {
+export function Body(props: HeadProps): JSX.Element {
   return $$inject('body', props);
 }
 

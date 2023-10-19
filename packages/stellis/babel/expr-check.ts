@@ -1,12 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable eqeqeq */
 /* eslint-disable @typescript-eslint/restrict-plus-operands */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable no-bitwise */
+/* eslint-disable eqeqeq */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import * as t from '@babel/types';
 import assert from '../shared/assert';
-import { Serializable } from '../shared/attr';
+import type { Serializable } from '../shared/attr';
 
 export function unwrapLiteral(node: t.Expression): Serializable {
   switch (node.type) {
@@ -261,7 +259,7 @@ export function isStatic(
       for (let i = 0, len = node.properties.length; i < len; i++) {
         const prop = node.properties[i];
         if (t.isObjectProperty(prop)) {
-          const result = (() => {
+          const result = ((): boolean => {
             if (t.isExpression(prop.value) && isStatic(prop.value)) {
               return true;
             }
@@ -283,7 +281,7 @@ export function isStatic(
       for (let i = 0, len = node.properties.length; i < len; i++) {
         const prop = node.properties[i];
         if (t.isObjectProperty(prop)) {
-          const result = (() => {
+          const result = ((): boolean => {
             if (!t.isTSTypeParameter(prop.value) && isStatic(prop.value)) {
               return true;
             }
@@ -437,7 +435,7 @@ export function isAwaited(node: t.Expression | t.SpreadElement): boolean {
     case 'RecordExpression':
       for (let i = 0, len = node.properties.length; i < len; i++) {
         const prop = node.properties[i];
-        const result = (() => {
+        const result = ((): boolean => {
           if (t.isObjectProperty(prop)) {
             if (t.isExpression(prop.value) && isAwaited(prop.value)) {
               return true;
